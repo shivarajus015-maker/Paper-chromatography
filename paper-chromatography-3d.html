@@ -1,0 +1,3045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Paper Chromatography 3D Lab | ಪೇಪರ್ ಕ್ರೋಮ್ಯಾಟೋಗ್ರಫಿ 3D ಪ್ರಯೋಗಾಲಯ</title>
+
+  <!-- Playful Educational Fonts (English + Kannada) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Noto+Sans+Kannada:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Three.js r147 & OrbitControls via CDN (works over both http:// and file://) -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+
+  <style>
+    :root {
+      --card-bg: rgba(255, 255, 255, 0.92);
+      --card-border: rgba(255, 255, 255, 0.98);
+      --shadow-soft: 0 10px 28px rgba(8, 15, 40, 0.28);
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --font-display: "Fredoka", "Noto Sans Kannada", "Nirmala UI", sans-serif;
+      --font-body: "Nunito", "Noto Sans Kannada", "Nirmala UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: var(--font-body);
+      background: #14213d;
+      color: var(--text-main);
+    }
+
+    /* Fullscreen WebGL Canvas */
+    #canvas-container {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      cursor: grab;
+    }
+
+    #canvas-container.dragging {
+      cursor: grabbing;
+    }
+
+    #canvas-container.band-hover {
+      cursor: pointer;
+    }
+
+    /* Confetti Canvas Overlay */
+    #confetti-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      pointer-events: none;
+    }
+
+    /* Minimal Top Bar (Nothing in the Middle!) */
+    .top-bar {
+      position: fixed;
+      top: 12px;
+      left: 14px;
+      right: 14px;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      pointer-events: none;
+    }
+
+    .brand-pill,
+    .controls-pill {
+      pointer-events: auto;
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 2px solid var(--card-border);
+      border-radius: 20px;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .brand-pill {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 7px 14px;
+    }
+
+    .brand-badge {
+      width: 34px;
+      height: 34px;
+      border-radius: 11px;
+      background: linear-gradient(135deg, #ff5c8a, #ffbe0b, #00bbf9, #8338ec);
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .brand-title {
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.15;
+      background: linear-gradient(90deg, #4c6ef5, #d6336c);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .brand-sub {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .controls-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 9px;
+    }
+
+    .icon-btn {
+      border: none;
+      border-radius: 13px;
+      padding: 7px 11px;
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 12.5px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      background: #f1f5f9;
+      color: var(--text-main);
+    }
+
+    .icon-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.14);
+    }
+
+    .icon-btn:active {
+      transform: scale(0.96);
+    }
+
+    .icon-btn.active {
+      background: linear-gradient(135deg, #00bbf9, #4c6ef5);
+      color: #fff;
+    }
+
+    .icon-btn.reset {
+      background: linear-gradient(135deg, #ff6b6b, #ff5c8a);
+      color: #fff;
+    }
+
+    /* Left Panel: All Instructions + Steps ONLY on Left Side */
+    .left-panel {
+      position: fixed;
+      left: 14px;
+      top: 76px;
+      width: 224px;
+      z-index: 15;
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 2px solid var(--card-border);
+      border-radius: 20px;
+      padding: 11px;
+      box-shadow: var(--shadow-soft);
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      transition: transform 0.25s ease, opacity 0.25s ease;
+    }
+
+    body.panels-hidden .left-panel {
+      transform: translateX(-260px);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    body.panels-hidden .right-panel {
+      transform: translateX(320px);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .step-card-left {
+      background: linear-gradient(135deg, #edf2ff, #f3f0ff);
+      border: 2px solid #748ffc;
+      border-radius: 14px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .step-chip {
+      display: inline-block;
+      align-self: flex-start;
+      background: linear-gradient(135deg, #4c6ef5, #7950f2);
+      color: #fff;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 11.5px;
+      padding: 3px 10px;
+      border-radius: 999px;
+    }
+
+    .step-text-en {
+      font-weight: 800;
+      font-size: 12.5px;
+      line-height: 1.3;
+      color: #1e293b;
+    }
+
+    .step-text-kn {
+      font-weight: 700;
+      font-size: 11.5px;
+      line-height: 1.35;
+      color: #5f3dc4;
+    }
+
+    .panel-header {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #364fc7;
+      padding-bottom: 3px;
+      border-bottom: 2px dashed #e2e8f0;
+    }
+
+    .tool-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 8px;
+      border-radius: 11px;
+      background: #f8fafc;
+      border: 2px solid transparent;
+      font-size: 11.5px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tool-item:hover {
+      background: #eef2ff;
+    }
+
+    .tool-item.active-step {
+      background: linear-gradient(135deg, #fff0f6, #edf2ff);
+      border-color: #ff5c8a;
+      box-shadow: 0 4px 10px rgba(255, 92, 138, 0.2);
+    }
+
+    .tool-item.done {
+      background: #e6fcf5;
+      border-color: #38d9a9;
+      opacity: 0.9;
+    }
+
+    .tool-emoji {
+      font-size: 16px;
+      width: 20px;
+      text-align: center;
+    }
+
+    .tool-labels {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.15;
+      flex: 1;
+    }
+
+    .tool-en {
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .tool-kn {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #5f3dc4;
+    }
+
+    .tool-check {
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .pen-picker-row {
+      display: none;
+      gap: 5px;
+      flex-wrap: wrap;
+      padding: 5px;
+      background: #fff0f6;
+      border: 1.5px dashed #ff5c8a;
+      border-radius: 11px;
+    }
+
+    .pen-picker-row.visible {
+      display: flex;
+    }
+
+    .pen-chip {
+      border: 2px solid #fff;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 800;
+      color: #fff;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+    }
+
+    .hint-box {
+      font-size: 11px;
+      line-height: 1.3;
+      background: #fff9db;
+      border: 1.5px solid #ffd43b;
+      border-radius: 10px;
+      padding: 6px 8px;
+      color: #7c2d12;
+      font-weight: 700;
+    }
+
+    /* Right Panel: Live Data Dashboard & Graph */
+    .right-panel {
+      position: fixed;
+      right: 14px;
+      top: 76px;
+      width: 270px;
+      z-index: 15;
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 2px solid var(--card-border);
+      border-radius: 20px;
+      padding: 10px 12px;
+      box-shadow: var(--shadow-soft);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: transform 0.25s ease, opacity 0.25s ease;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+    }
+
+    .metric-card {
+      background: linear-gradient(135deg, #f8fafc, #eef2ff);
+      border-radius: 12px;
+      padding: 6px 9px;
+      border: 1.5px solid #dbe4ff;
+    }
+
+    .metric-label {
+      font-size: 10.5px;
+      font-weight: 800;
+      color: var(--text-muted);
+    }
+
+    .metric-val {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 700;
+      color: #3b5bdb;
+    }
+
+    .graph-wrap {
+      background: #ffffff;
+      border-radius: 14px;
+      padding: 7px;
+      border: 1.5px solid #e2e8f0;
+    }
+
+    .graph-title {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-bottom: 4px;
+      text-align: center;
+    }
+
+    #live-graph {
+      width: 100%;
+      height: 150px;
+      display: block;
+    }
+
+    .band-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .band-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      background: #f8fafc;
+      border: 1.5px solid #e2e8f0;
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+
+    .band-pill:hover {
+      transform: translateY(-1px);
+    }
+
+    .swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    /* Bottom Action Bar */
+    .bottom-bar {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .primary-action-btn {
+      border: none;
+      border-radius: 999px;
+      padding: 13px 26px;
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(135deg, #00bbf9, #4c6ef5, #8338ec);
+      background-size: 200% 200%;
+      box-shadow: 0 10px 26px rgba(0, 187, 249, 0.45);
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      gap: 10px;
+      animation: gradientShift 3s ease infinite, bounceGlow 1.6s ease-in-out infinite;
+    }
+
+    .primary-action-btn.visible {
+      display: inline-flex;
+    }
+
+    .sim-controls {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 2px solid var(--card-border);
+      border-radius: 999px;
+      padding: 6px 12px;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .sim-controls.visible {
+      display: flex;
+    }
+
+    @keyframes gradientShift {
+      0%,
+      100% {
+        background-position: 0% 50%;
+      }
+      50% {
+        background-position: 100% 50%;
+      }
+    }
+
+    @keyframes bounceGlow {
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-4px);
+      }
+    }
+
+    /* Raycasted Color Band Info Card */
+    .info-card {
+      position: fixed;
+      z-index: 35;
+      width: 310px;
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(16px);
+      border: 3px solid #4c6ef5;
+      border-radius: 22px;
+      padding: 14px 16px;
+      box-shadow: 0 18px 42px rgba(15, 23, 42, 0.3);
+      display: none;
+      animation: popIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .info-card.visible {
+      display: block;
+    }
+
+    .info-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .info-band-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .info-swatch-lg {
+      width: 18px;
+      height: 18px;
+      border-radius: 6px;
+      border: 2px solid rgba(0, 0, 0, 0.15);
+    }
+
+    .close-btn {
+      border: none;
+      background: #f1f5f9;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      font-weight: 800;
+      cursor: pointer;
+      color: var(--text-muted);
+    }
+
+    .info-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .info-stat {
+      background: #f8fafc;
+      border-radius: 10px;
+      padding: 6px 8px;
+      font-size: 11.5px;
+      font-weight: 800;
+    }
+
+    .info-rule {
+      background: linear-gradient(135deg, #fff3bf, #ffe8cc);
+      border: 1.5px solid #fcc419;
+      border-radius: 14px;
+      padding: 9px 11px;
+      font-size: 12.5px;
+      font-weight: 800;
+      color: #5c3c00;
+      line-height: 1.4;
+    }
+
+    /* Conclusion Modal */
+    .result-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 45;
+      background: rgba(15, 23, 42, 0.42);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .result-overlay.visible {
+      display: flex;
+    }
+
+    .result-box {
+      width: 100%;
+      max-width: 500px;
+      background: linear-gradient(160deg, #ffffff 0%, #f8f9ff 100%);
+      border: 4px solid #ffd43b;
+      border-radius: 28px;
+      padding: 24px 26px;
+      text-align: center;
+      box-shadow: 0 24px 60px rgba(30, 41, 59, 0.35);
+      animation: popIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .result-trophy {
+      font-size: 52px;
+      margin-bottom: 6px;
+    }
+
+    .result-title {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 700;
+      background: linear-gradient(90deg, #e64980, #7950f2, #12b886);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin: 0 0 10px;
+    }
+
+    .result-message {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text-main);
+      background: #f3f0ff;
+      border: 2px dashed #b197fc;
+      border-radius: 18px;
+      padding: 12px 14px;
+      line-height: 1.5;
+      margin-bottom: 14px;
+    }
+
+    .result-bands-summary {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+
+    .result-actions {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    @keyframes popIn {
+      0% {
+        opacity: 0;
+        transform: scale(0.84) translateY(10px);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    body.lang-en .kn-only {
+      display: none !important;
+    }
+    body.lang-kn .en-only {
+      display: none !important;
+    }
+
+    #webgl-error {
+      position: fixed;
+      inset: 0;
+      z-index: 99;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: #fff5f5;
+      color: #c92a2a;
+      font-size: 18px;
+      font-weight: 800;
+      padding: 24px;
+      text-align: center;
+    }
+
+    @media (max-width: 980px) {
+      .left-panel {
+        width: 175px;
+        top: 72px;
+      }
+      .right-panel {
+        width: 225px;
+        top: 72px;
+      }
+    }
+  </style>
+</head>
+<body class="lang-bi">
+  <!-- 3D WebGL Viewport -->
+  <div id="canvas-container"></div>
+  <div id="webgl-error">
+    Unable to load Three.js 3D Engine. Please check your internet connection so the CDN scripts can load.
+  </div>
+
+  <!-- Confetti Celebration Layer -->
+  <canvas id="confetti-canvas"></canvas>
+
+  <!-- Clean Minimal Top Bar (Nothing blocking middle!) -->
+  <header class="top-bar">
+    <div class="brand-pill">
+      <div class="brand-badge">🧪</div>
+      <div>
+        <div class="brand-title">
+          <span class="en-only">Paper Chromatography 3D</span>
+          <span class="kn-only">ಪೇಪರ್ ಕ್ರೋಮ್ಯಾಟೋಗ್ರಫಿ 3D</span>
+        </div>
+        <div class="brand-sub">
+          <span class="en-only">Separation of Mixtures • Ink Lab</span>
+          <span class="kn-only">ಮಿಶ್ರಣಗಳ ಬೇರ್ಪಡಿಸುವಿಕೆ • ಶಾಯಿ ಪ್ರಯೋಗ</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls-pill">
+      <button class="icon-btn active" id="btn-lang" title="Switch Language">
+        🌐 <span id="lang-label">EN + ಕನ್ನಡ</span>
+      </button>
+      <button class="icon-btn" id="btn-theme" title="Change Lab Background Color">
+        🎨 <span id="theme-label">Deep Lab</span>
+      </button>
+      <button class="icon-btn" id="btn-panels" title="Hide/Show Side Panels">
+        👁️ <span class="en-only">Panels</span>
+      </button>
+      <button class="icon-btn active" id="btn-sound" title="Toggle Sound">
+        🔊 <span class="en-only">Sound</span>
+      </button>
+      <button class="icon-btn reset" id="btn-reset" title="Restart Experiment">
+        🔄 <span class="en-only">Reset</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Left Panel: Instructions + Steps ONLY on Left Side -->
+  <aside class="left-panel">
+    <div class="step-card-left">
+      <div class="step-chip" id="step-chip">Step 1 / 5</div>
+      <div class="step-text-en en-only" id="step-desc-en">
+        Drag (or click) the Beaker into the glowing circle!
+      </div>
+      <div class="step-text-kn kn-only" id="step-desc-kn">
+        ಬೀಕರ್ ಅನ್ನು ಹೊಳೆಯುವ ವೃತ್ತಕ್ಕೆ ಎಳೆಯಿರಿ (ಅಥವಾ ಕ್ಲಿಕ್ ಮಾಡಿ)!
+      </div>
+    </div>
+
+    <div class="panel-header">
+      <span>
+        🧰 <span class="en-only">Lab Steps</span>
+        <span class="kn-only">ಪ್ರಯೋಗ ಹಂತಗಳು</span>
+      </span>
+    </div>
+
+    <div class="tool-item active-step" id="item-card-beaker">
+      <div class="tool-emoji">🥛</div>
+      <div class="tool-labels">
+        <span class="tool-en en-only">1. Beaker</span>
+        <span class="tool-kn kn-only">೧. ಗಾಜಿನ ಬೀಕರ್</span>
+      </div>
+      <span class="tool-check" id="chk-beaker">👉</span>
+    </div>
+
+    <div class="tool-item" id="item-card-bottle">
+      <div class="tool-emoji">🧴</div>
+      <div class="tool-labels">
+        <span class="tool-en en-only">2. Water Bottle</span>
+        <span class="tool-kn kn-only">೨. ನೀರಿನ ಬಾಟಲಿ</span>
+      </div>
+      <span class="tool-check" id="chk-bottle">⏳</span>
+    </div>
+
+    <div class="tool-item" id="item-card-paper">
+      <div class="tool-emoji">📄</div>
+      <div class="tool-labels">
+        <span class="tool-en en-only">3. Filter Paper</span>
+        <span class="tool-kn kn-only">೩. ಫಿಲ್ಟರ್ ಪೇಪರ್</span>
+      </div>
+      <span class="tool-check" id="chk-paper">⏳</span>
+    </div>
+
+    <div class="tool-item" id="item-card-pencil">
+      <div class="tool-emoji">✏️</div>
+      <div class="tool-labels">
+        <span class="tool-en en-only">Pencil (Baseline)</span>
+        <span class="tool-kn kn-only">ಪೆನ್ಸಿಲ್ (ಮೂಲ ರೇಖೆ)</span>
+      </div>
+      <span class="tool-check" id="chk-pencil">✨</span>
+    </div>
+
+    <div class="tool-item" id="item-card-pen">
+      <div class="tool-emoji">🖊️</div>
+      <div class="tool-labels">
+        <span class="tool-en en-only">4. Sketch Pens (4 Colors)</span>
+        <span class="tool-kn kn-only">೪. ಸ್ಕೆಚ್ ಪೆನ್‌ಗಳು</span>
+      </div>
+      <span class="tool-check" id="chk-pen">⏳</span>
+    </div>
+
+    <!-- Quick Sketch Pen Color Picker (shows on Step 4) -->
+    <div class="pen-picker-row" id="pen-picker-row"></div>
+
+    <div class="hint-box" id="left-hint">
+      <span class="en-only">💡 Drag any item near the glowing circle—it snaps in easily! Or click a step above.</span>
+      <span class="kn-only">💡 ವಸ್ತುವನ್ನು ವೃತ್ತದ ಹತ್ತಿರ ಎಳೆದರೆ ಸುಲಭವಾಗಿ ಸೇರುತ್ತದೆ!</span>
+    </div>
+  </aside>
+
+  <!-- Right Panel: Live Data Dashboard & Graph -->
+  <aside class="right-panel">
+    <div class="panel-header">
+      <span>
+        📊 <span class="en-only">Live Lab Data</span>
+        <span class="kn-only">ನೇರ ಪ್ರಯೋಗ ದತ್ತಾಂಶ</span>
+      </span>
+      <span style="font-size: 11px; color: #0ca678; font-weight: 800">1s = 5 min</span>
+    </div>
+
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">
+          <span class="en-only">⏱️ Sim Time</span>
+          <span class="kn-only">ಸಮಯ</span>
+        </div>
+        <div class="metric-val" id="val-time">0 min</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">
+          <span class="en-only">💧 Water Front</span>
+          <span class="kn-only">ನೀರಿನ ಮಟ್ಟ</span>
+        </div>
+        <div class="metric-val" id="val-water">0.0 cm</div>
+      </div>
+    </div>
+
+    <div class="graph-wrap">
+      <div class="graph-title">
+        <span class="en-only">Distance: Water vs Colors (cm)</span>
+        <span class="kn-only">ದೂರ: ನೀರು ಮತ್ತು ಬಣ್ಣಗಳು (cm)</span>
+      </div>
+      <canvas id="live-graph" width="240" height="150"></canvas>
+    </div>
+
+    <div class="band-legend" id="band-legend"></div>
+  </aside>
+
+  <!-- Bottom Action Area -->
+  <div class="bottom-bar">
+    <button class="primary-action-btn" id="btn-place-water">
+      🌊
+      <span class="en-only">Place in Water</span>
+      <span class="kn-only">/ ನೀರಿನಲ್ಲಿ ಇಡಿ</span>
+    </button>
+
+    <div class="sim-controls" id="sim-controls">
+      <button class="icon-btn active" id="btn-play-pause">⏸️ Pause</button>
+      <button class="icon-btn" id="btn-speed">⏩ 1x (5 min/s)</button>
+      <button class="icon-btn" id="btn-focus-beaker">🔍 Focus 3D</button>
+    </div>
+  </div>
+
+  <!-- Raycasted Color Band Info Card -->
+  <div class="info-card" id="info-card">
+    <div class="info-card-header">
+      <div class="info-band-title">
+        <span class="info-swatch-lg" id="info-swatch"></span>
+        <span id="info-title">Color Band</span>
+      </div>
+      <button class="close-btn" id="info-close">✕</button>
+    </div>
+    <div class="info-stats">
+      <div class="info-stat" id="info-dist">Distance: 0.0 cm</div>
+      <div class="info-stat" id="info-rf">Rf Value: 0.00</div>
+    </div>
+    <div class="info-rule" id="info-rule">
+      Most soluble color travels the fastest (ಹೆಚ್ಚು ಕರಗುವ ಬಣ್ಣವು ವೇಗವಾಗಿ ಚಲಿಸುತ್ತದೆ).
+    </div>
+  </div>
+
+  <!-- Experiment Conclusion Modal -->
+  <div class="result-overlay" id="result-overlay">
+    <div class="result-box">
+      <div class="result-trophy">🎉🏆🌈</div>
+      <h2 class="result-title">
+        <span class="en-only">Chromatography Complete!</span>
+        <span class="kn-only">ಕ್ರೋಮ್ಯಾಟೋಗ್ರಫಿ ಪೂರ್ಣಗೊಂಡಿದೆ!</span>
+      </h2>
+      <div class="result-message" id="result-message">
+        <div class="en-only">Experiment Successful! Black ink is a mixture of many colors.</div>
+        <div class="kn-only">ಪ್ರಯೋಗ ಯಶಸ್ವಿಯಾಗಿದೆ! ಕಪ್ಪು ಶಾಯಿ ಅನೇಕ ಬಣ್ಣಗಳ ಮಿಶ್ರಣವಾಗಿದೆ.</div>
+      </div>
+      <div class="result-bands-summary" id="result-summary"></div>
+      <div class="result-actions">
+        <button class="icon-btn active" id="btn-inspect-3d">
+          🔍 <span class="en-only">Inspect 3D Bands</span><span class="kn-only"> 3D ವೀಕ್ಷಿಸಿ</span>
+        </button>
+        <button class="icon-btn reset" id="btn-run-again">
+          🔄 <span class="en-only">Try Another Pen</span><span class="kn-only"> ಮತ್ತೆ ಮಾಡಿ</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      if (typeof THREE === "undefined") {
+        document.getElementById("webgl-error").style.display = "flex";
+        return;
+      }
+
+      /* =========================================================================
+         1. PIGMENTS & DIFFERENT SKETCH PENS CONFIGURATION
+         ========================================================================= */
+      const PIGMENTS = [
+        {
+          id: "purple",
+          nameEn: "Purple",
+          nameKn: "ನೇರಳೆ",
+          hex: "#9b27eb",
+          rgb: [0.61, 0.15, 0.92],
+          rf: 0.22,
+          solubilityEn: "Least Soluble",
+          solubilityKn: "ಕಡಿಮೆ ಕರಗುವಿಕೆ",
+        },
+        {
+          id: "pink",
+          nameEn: "Pink",
+          nameKn: "ಗುಲಾಬಿ",
+          hex: "#ff2e93",
+          rgb: [1.0, 0.18, 0.58],
+          rf: 0.42,
+          solubilityEn: "Low-Medium Solubility",
+          solubilityKn: "ಮಧ್ಯಮ-ಕಡಿಮೆ ಕರಗುವಿಕೆ",
+        },
+        {
+          id: "yellow",
+          nameEn: "Yellow",
+          nameKn: "ಹಳದಿ",
+          hex: "#ffd000",
+          rgb: [1.0, 0.82, 0.0],
+          rf: 0.60,
+          solubilityEn: "Medium Solubility",
+          solubilityKn: "ಮಧ್ಯಮ ಕರಗುವಿಕೆ",
+        },
+        {
+          id: "blue",
+          nameEn: "Blue",
+          nameKn: "ನೀಲಿ",
+          hex: "#2563eb",
+          rgb: [0.15, 0.39, 0.92],
+          rf: 0.78,
+          solubilityEn: "High Solubility",
+          solubilityKn: "ಹೆಚ್ಚು ಕರಗುವಿಕೆ",
+        },
+        {
+          id: "cyan",
+          nameEn: "Cyan",
+          nameKn: "ಸಯಾನ್",
+          hex: "#00e5ff",
+          rgb: [0.0, 0.9, 1.0],
+          rf: 0.92,
+          solubilityEn: "Most Soluble (Fastest!)",
+          solubilityKn: "ಅತಿ ಹೆಚ್ಚು ಕರಗುವಿಕೆ (ವೇಗವಾದದ್ದು!)",
+        },
+      ];
+
+      // 4 Different Sketch Pens in the 3D Toolbox!
+      // weights map to [Purple, Pink, Yellow, Blue, Cyan]
+      const SKETCH_PENS = [
+        {
+          id: "pen-black",
+          nameEn: "Black Pen",
+          nameKn: "ಕಪ್ಪು ಪೆನ್",
+          hex: "#18181b",
+          rgb: [0.07, 0.07, 0.10],
+          weights: [1, 1, 1, 1, 1],
+          resultEn: "Experiment Successful! Black ink is a mixture of many colors.",
+          resultKn: "ಪ್ರಯೋಗ ಯಶಸ್ವಿಯಾಗಿದೆ! ಕಪ್ಪು ಶಾಯಿ ಅನೇಕ ಬಣ್ಣಗಳ ಮಿಶ್ರಣವಾಗಿದೆ.",
+        },
+        {
+          id: "pen-green",
+          nameEn: "Green Pen",
+          nameKn: "ಹಸಿರು ಪೆನ್",
+          hex: "#12b886",
+          rgb: [0.05, 0.58, 0.32],
+          weights: [0, 0, 1, 1, 1],
+          resultEn: "Experiment Successful! Green ink is a mixture of Yellow, Blue & Cyan dyes.",
+          resultKn: "ಪ್ರಯೋಗ ಯಶಸ್ವಿಯಾಗಿದೆ! ಹಸಿರು ಶಾಯಿ ಹಳದಿ, ನೀಲಿ ಮತ್ತು ಸಯಾನ್ ಬಣ್ಣಗಳ ಮಿಶ್ರಣವಾಗಿದೆ.",
+        },
+        {
+          id: "pen-brown",
+          nameEn: "Brown Pen",
+          nameKn: "ಕಂದು ಪೆನ್",
+          hex: "#b45309",
+          rgb: [0.55, 0.25, 0.05],
+          weights: [1, 1, 1, 0, 0],
+          resultEn: "Experiment Successful! Brown ink is a mixture of Purple, Pink & Yellow dyes.",
+          resultKn: "ಪ್ರಯೋಗ ಯಶಸ್ವಿಯಾಗಿದೆ! ಕಂದು ಶಾಯಿ ನೇರಳೆ, ಗುಲಾಬಿ ಮತ್ತು ಹಳದಿ ಬಣ್ಣಗಳ ಮಿಶ್ರಣವಾಗಿದೆ.",
+        },
+        {
+          id: "pen-violet",
+          nameEn: "Violet Pen",
+          nameKn: "ನೇರಳೆ ಪೆನ್",
+          hex: "#7c3aed",
+          rgb: [0.42, 0.12, 0.80],
+          weights: [1, 1, 0, 1, 0],
+          resultEn: "Experiment Successful! Violet ink is a mixture of Purple, Pink & Blue dyes.",
+          resultKn: "ಪ್ರಯೋಗ ಯಶಸ್ವಿಯಾಗಿದೆ! ನೇರಳೆ ಶಾಯಿ ನೇರಳೆ, ಗುಲಾಬಿ ಮತ್ತು ನೀಲಿ ಬಣ್ಣಗಳ ಮಿಶ್ರಣವಾಗಿದೆ.",
+        },
+      ];
+
+      const state = {
+        step: 1,
+        langMode: "bi",
+        soundEnabled: true,
+        paused: false,
+        speedMultiplier: 1,
+        simMinutes: 0,
+        waterCm: 0,
+        beakerWaterLevel: 0,
+        hasPencilLine: false,
+        hasInkDot: false,
+        selectedPen: SKETCH_PENS[0],
+        paperInBeaker: false,
+        lastChimeBandIdx: -1,
+        selectedBandId: null,
+        history: [],
+        lastHistoryMin: -1,
+      };
+
+      const ORIGIN_CM = 2.0;
+      const MAX_WATER_CM = 10.0;
+      const CM_RISE_PER_SIM_MIN = 0.16;
+
+      /* =========================================================================
+         2. WEB AUDIO API SOUND SYNTHESIZER
+         ========================================================================= */
+      class SoundEngine {
+        constructor() {
+          this.ctx = null;
+        }
+        ensureCtx() {
+          if (!state.soundEnabled) return null;
+          if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) this.ctx = new AudioCtx();
+          }
+          if (this.ctx && this.ctx.state === "suspended") {
+            this.ctx.resume();
+          }
+          return this.ctx;
+        }
+        playPop(freq = 520) {
+          const ctx = this.ensureCtx();
+          if (!ctx) return;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(freq, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(freq * 1.45, ctx.currentTime + 0.09);
+          gain.gain.setValueAtTime(0.14, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.11);
+          osc.connect(gain).connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.12);
+        }
+        playSnap() {
+          const ctx = this.ensureCtx();
+          if (!ctx) return;
+          [440, 660].forEach((f, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "triangle";
+            const t = ctx.currentTime + idx * 0.06;
+            osc.frequency.setValueAtTime(f, t);
+            gain.gain.setValueAtTime(0.14, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+            osc.connect(gain).connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.17);
+          });
+        }
+        playWaterSplash(duration = 1.1) {
+          const ctx = this.ensureCtx();
+          if (!ctx) return;
+          const bufferSize = Math.floor(ctx.sampleRate * duration);
+          const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.65));
+          }
+          const noise = ctx.createBufferSource();
+          noise.buffer = buffer;
+
+          const filter = ctx.createBiquadFilter();
+          filter.type = "bandpass";
+          filter.frequency.setValueAtTime(650, ctx.currentTime);
+          filter.frequency.linearRampToValueAtTime(1400, ctx.currentTime + duration * 0.6);
+          filter.Q.value = 2.4;
+
+          const gain = ctx.createGain();
+          gain.gain.setValueAtTime(0.01, ctx.currentTime);
+          gain.gain.linearRampToValueAtTime(0.22, ctx.currentTime + 0.12);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+
+          noise.connect(filter).connect(gain).connect(ctx.destination);
+          noise.start();
+        }
+        playMagicChime(stepIdx = 0) {
+          const ctx = this.ensureCtx();
+          if (!ctx) return;
+          const scale = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
+          const base = scale[stepIdx % scale.length];
+          [base, base * 1.5].forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "sine";
+            const t = ctx.currentTime + i * 0.05;
+            osc.frequency.setValueAtTime(freq, t);
+            gain.gain.setValueAtTime(0.11, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+            osc.connect(gain).connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.46);
+          });
+        }
+        playFanfare() {
+          const ctx = this.ensureCtx();
+          if (!ctx) return;
+          [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "triangle";
+            const t = ctx.currentTime + i * 0.11;
+            osc.frequency.setValueAtTime(f, t);
+            gain.gain.setValueAtTime(0.16, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+            osc.connect(gain).connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.56);
+          });
+        }
+      }
+      const sound = new SoundEngine();
+
+      /* =========================================================================
+         3. THREE.JS SCENE, HIGH-CONTRAST LAB BACKGROUND & LIGHTING
+         ========================================================================= */
+      const container = document.getElementById("canvas-container");
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x162447);
+      scene.fog = new THREE.Fog(0x162447, 18, 40);
+
+      const camera = new THREE.PerspectiveCamera(44, window.innerWidth / window.innerHeight, 0.1, 100);
+      const defaultCamPos = new THREE.Vector3(0.0, 5.4, 9.6);
+      const defaultTarget = new THREE.Vector3(0.0, 1.25, 0.15);
+      camera.position.copy(defaultCamPos);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      container.appendChild(renderer.domElement);
+
+      const controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+      controls.target.copy(defaultTarget);
+      controls.maxPolarAngle = Math.PI * 0.46;
+      controls.minDistance = 3.5;
+      controls.maxDistance = 16;
+
+      // Balanced Lab Lighting for High Contrast on Glass Beaker & White Paper
+      const hemiLight = new THREE.HemisphereLight(0xeef6ff, 0x1f2937, 0.88);
+      scene.add(hemiLight);
+
+      const dirLight = new THREE.DirectionalLight(0xffffff, 1.05);
+      dirLight.position.set(5, 11, 8);
+      dirLight.castShadow = true;
+      dirLight.shadow.mapSize.set(2048, 2048);
+      dirLight.shadow.camera.near = 1;
+      dirLight.shadow.camera.far = 28;
+      dirLight.shadow.camera.left = -8;
+      dirLight.shadow.camera.right = 8;
+      dirLight.shadow.camera.top = 8;
+      dirLight.shadow.camera.bottom = -8;
+      scene.add(dirLight);
+
+      const rimLight = new THREE.PointLight(0x38bdf8, 0.7, 18);
+      rimLight.position.set(-3.5, 4, 4);
+      scene.add(rimLight);
+
+      function create3DLabel(text, bgHex = "#ffffff", textHex = "#0f172a", borderHex = "#4c6ef5", scaleW = 1.45) {
+        const c = document.createElement("canvas");
+        c.width = 512;
+        c.height = 128;
+        const ctx = c.getContext("2d");
+        const r = 34;
+        ctx.fillStyle = bgHex;
+        ctx.strokeStyle = borderHex;
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(r, 12);
+        ctx.lineTo(500 - r, 12);
+        ctx.quadraticCurveTo(500, 12, 500, 12 + r);
+        ctx.lineTo(500, 116 - r);
+        ctx.quadraticCurveTo(500, 116, 500 - r, 116);
+        ctx.lineTo(r, 116);
+        ctx.quadraticCurveTo(12, 116, 12, 116 - r);
+        ctx.lineTo(12, 12 + r);
+        ctx.quadraticCurveTo(12, 12, r, 12);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = textHex;
+        ctx.font = "800 34px 'Fredoka', 'Noto Sans Kannada', 'Nirmala UI', sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(text, 256, 65);
+
+        const tex = new THREE.CanvasTexture(c);
+        tex.encoding = THREE.sRGBEncoding;
+        const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+        const sprite = new THREE.Sprite(mat);
+        sprite.scale.set(scaleW, scaleW * 0.25, 1);
+        sprite.renderOrder = 10;
+        return sprite;
+      }
+
+      // Rich Dark Slate Lab Bench & Deep Cyan Silicone Mat (makes Glass Beaker & White Paper POP!)
+      const tableTop = new THREE.Mesh(
+        new THREE.BoxGeometry(14, 0.5, 7.2),
+        new THREE.MeshStandardMaterial({ color: 0x263248, roughness: 0.48 })
+      );
+      tableTop.position.set(0, -0.25, 0);
+      tableTop.receiveShadow = true;
+      scene.add(tableTop);
+
+      const tableTrim = new THREE.Mesh(
+        new THREE.BoxGeometry(14.18, 0.2, 7.38),
+        new THREE.MeshStandardMaterial({ color: 0x00bbf9, roughness: 0.35 })
+      );
+      tableTrim.position.set(0, -0.42, 0);
+      scene.add(tableTrim);
+
+      const labMat = new THREE.Mesh(
+        new THREE.BoxGeometry(4.7, 0.04, 3.6),
+        new THREE.MeshStandardMaterial({ color: 0x164e63, roughness: 0.65 })
+      );
+      labMat.position.set(1.1, 0.02, 0.2);
+      labMat.receiveShadow = true;
+      scene.add(labMat);
+
+      // Tiled Lab Wall Texture (Dark Slate Science Tiles for clear glass contrast)
+      function makeLabTileTexture() {
+        const c = document.createElement("canvas");
+        c.width = 512;
+        c.height = 512;
+        const ctx = c.getContext("2d");
+        ctx.fillStyle = "#1e293b";
+        ctx.fillRect(0, 0, 512, 512);
+        for (let y = 0; y < 4; y++) {
+          for (let x = 0; x < 4; x++) {
+            ctx.fillStyle = (x + y) % 2 === 0 ? "#25344f" : "#1f2d45";
+            ctx.fillRect(x * 128 + 3, y * 128 + 3, 122, 122);
+          }
+        }
+        ctx.strokeStyle = "#334155";
+        ctx.lineWidth = 4;
+        for (let i = 0; i <= 512; i += 128) {
+          ctx.beginPath();
+          ctx.moveTo(i, 0);
+          ctx.lineTo(i, 512);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(0, i);
+          ctx.lineTo(512, i);
+          ctx.stroke();
+        }
+        const tex = new THREE.CanvasTexture(c);
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
+        tex.repeat.set(7, 3.5);
+        tex.encoding = THREE.sRGBEncoding;
+        return tex;
+      }
+
+      function makePeriodicPosterTexture() {
+        const c = document.createElement("canvas");
+        c.width = 512;
+        c.height = 320;
+        const ctx = c.getContext("2d");
+        ctx.fillStyle = "#f8fafc";
+        ctx.fillRect(0, 0, 512, 320);
+        ctx.strokeStyle = "#38bdf8";
+        ctx.lineWidth = 10;
+        ctx.strokeRect(8, 8, 496, 304);
+        ctx.fillStyle = "#1e3a8a";
+        ctx.font = "bold 24px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("PERIODIC TABLE OF ELEMENTS", 256, 40);
+        const cellColors = ["#ff8787", "#ffd43b", "#69db7c", "#4dabf7", "#da77f2", "#ffa94d", "#3bc9db"];
+        const symbols = [
+          "H", "", "", "", "", "", "", "", "", "He",
+          "Li", "Be", "B", "C", "N", "O", "F", "Ne", "Na", "Mg",
+          "Al", "Si", "P", "S", "Cl", "Ar", "K", "Ca", "Fe", "Cu",
+          "Zn", "Ag", "I", "Au", "Hg", "Pb", "U", "Xe", "Br", "Kr",
+        ];
+        for (let r = 0; r < 4; r++) {
+          for (let col = 0; col < 10; col++) {
+            const sym = symbols[r * 10 + col];
+            if (!sym) continue;
+            const x = 26 + col * 46;
+            const y = 62 + r * 58;
+            ctx.fillStyle = cellColors[(r + col) % cellColors.length];
+            ctx.fillRect(x, y, 40, 48);
+            ctx.strokeStyle = "#1e293b";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, y, 40, 48);
+            ctx.fillStyle = "#0f172a";
+            ctx.font = "bold 17px sans-serif";
+            ctx.fillText(sym, x + 20, y + 30);
+          }
+        }
+        const tex = new THREE.CanvasTexture(c);
+        tex.encoding = THREE.sRGBEncoding;
+        return tex;
+      }
+
+      function makeChromatographyPosterTexture() {
+        const c = document.createElement("canvas");
+        c.width = 420;
+        c.height = 512;
+        const ctx = c.getContext("2d");
+        ctx.fillStyle = "#fff9db";
+        ctx.fillRect(0, 0, 420, 512);
+        ctx.strokeStyle = "#ff5c8a";
+        ctx.lineWidth = 10;
+        ctx.strokeRect(8, 8, 404, 496);
+        ctx.fillStyle = "#a61e4d";
+        ctx.font = "bold 24px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("INK CHROMATOGRAPHY", 210, 48);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(145, 95, 130, 330);
+        ctx.strokeStyle = "#94a3b8";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(145, 95, 130, 330);
+        ["#00e5ff", "#2563eb", "#ffd000", "#ff2e93", "#9b27eb"].forEach((hex, idx) => {
+          ctx.fillStyle = hex;
+          ctx.fillRect(168, 120 + idx * 52, 84, 26);
+        });
+        ctx.fillStyle = "#1e293b";
+        ctx.font = "bold 15px sans-serif";
+        ctx.fillText("Most Soluble = Fastest!", 210, 468);
+        const tex = new THREE.CanvasTexture(c);
+        tex.encoding = THREE.sRGBEncoding;
+        return tex;
+      }
+
+      function makeWindowSkyTexture() {
+        const c = document.createElement("canvas");
+        c.width = 512;
+        c.height = 384;
+        const ctx = c.getContext("2d");
+        const grad = ctx.createLinearGradient(0, 0, 0, 384);
+        grad.addColorStop(0, "#0284c7");
+        grad.addColorStop(1, "#7dd3fc");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 512, 384);
+        ctx.fillStyle = "#fde047";
+        ctx.beginPath();
+        ctx.arc(410, 85, 42, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "rgba(255,255,255,0.88)";
+        [[120, 120, 45], [165, 110, 55], [215, 125, 42], [300, 220, 38], [340, 210, 48]].forEach(([cx, cy, cr]) => {
+          ctx.beginPath();
+          ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        const tex = new THREE.CanvasTexture(c);
+        tex.encoding = THREE.sRGBEncoding;
+        return tex;
+      }
+
+      const backWallMat = new THREE.MeshStandardMaterial({
+        map: makeLabTileTexture(),
+        color: 0xffffff,
+        roughness: 0.72,
+      });
+      const backWall = new THREE.Mesh(new THREE.PlaneGeometry(30, 14), backWallMat);
+      backWall.position.set(0, 5.5, -4.45);
+      scene.add(backWall);
+
+      const wallStripe = new THREE.Mesh(
+        new THREE.BoxGeometry(30, 0.22, 0.12),
+        new THREE.MeshStandardMaterial({ color: 0x00bbf9 })
+      );
+      wallStripe.position.set(0, 1.35, -4.4);
+      scene.add(wallStripe);
+
+      const labFloor = new THREE.Mesh(
+        new THREE.PlaneGeometry(36, 26),
+        new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.85 })
+      );
+      labFloor.rotation.x = -Math.PI / 2;
+      labFloor.position.set(0, -3.2, 0);
+      scene.add(labFloor);
+
+      // Lab Window & Wall Posters
+      const windowGroup = new THREE.Group();
+      const windowGlass = new THREE.Mesh(
+        new THREE.PlaneGeometry(3.4, 2.4),
+        new THREE.MeshBasicMaterial({ map: makeWindowSkyTexture() })
+      );
+      const windowFrame = new THREE.Mesh(
+        new THREE.BoxGeometry(3.65, 2.65, 0.12),
+        new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.35 })
+      );
+      windowFrame.position.z = -0.07;
+      windowGroup.add(windowFrame, windowGlass);
+      windowGroup.position.set(0.05, 4.5, -4.35);
+      scene.add(windowGroup);
+
+      const chromPoster = new THREE.Mesh(
+        new THREE.PlaneGeometry(2.35, 2.85),
+        new THREE.MeshStandardMaterial({ map: makeChromatographyPosterTexture(), roughness: 0.5 })
+      );
+      chromPoster.position.set(-4.1, 4.35, -4.38);
+      scene.add(chromPoster);
+
+      const periodicPoster = new THREE.Mesh(
+        new THREE.PlaneGeometry(3.3, 2.1),
+        new THREE.MeshStandardMaterial({ map: makePeriodicPosterTexture(), roughness: 0.5 })
+      );
+      periodicPoster.position.set(4.35, 4.55, -4.38);
+      scene.add(periodicPoster);
+
+      // Wall Shelf with Colorful Lab Glassware & Rainbow Test Tube Rack
+      const shelfWood = new THREE.Mesh(
+        new THREE.BoxGeometry(9.6, 0.16, 0.95),
+        new THREE.MeshStandardMaterial({ color: 0xf59f00, roughness: 0.45 })
+      );
+      shelfWood.position.set(0.1, 2.15, -3.95);
+      scene.add(shelfWood);
+
+      function addShelfFlask(x, liqColor, scale = 1.0) {
+        const fg = new THREE.Group();
+        const body = new THREE.Mesh(
+          new THREE.ConeGeometry(0.36 * scale, 0.72 * scale, 24),
+          new THREE.MeshPhysicalMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.42 })
+        );
+        body.position.y = 0.36 * scale;
+        const neck = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.11 * scale, 0.13 * scale, 0.36 * scale, 16),
+          new THREE.MeshPhysicalMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.42 })
+        );
+        neck.position.y = 0.85 * scale;
+        const liq = new THREE.Mesh(
+          new THREE.ConeGeometry(0.30 * scale, 0.42 * scale, 20),
+          new THREE.MeshStandardMaterial({ color: liqColor, emissive: liqColor, emissiveIntensity: 0.25 })
+        );
+        liq.position.y = 0.22 * scale;
+        fg.add(body, neck, liq);
+        fg.position.set(x, 2.23, -3.88);
+        scene.add(fg);
+      }
+      addShelfFlask(-3.4, 0xff2e93, 1.05);
+      addShelfFlask(-2.45, 0x00e5ff, 0.9);
+      addShelfFlask(3.85, 0x9b27eb, 1.0);
+
+      const rackGroup = new THREE.Group();
+      const rackBase = new THREE.Mesh(
+        new THREE.BoxGeometry(1.7, 0.1, 0.42),
+        new THREE.MeshStandardMaterial({ color: 0x38bdf8 })
+      );
+      const rackTop = new THREE.Mesh(
+        new THREE.BoxGeometry(1.7, 0.08, 0.38),
+        new THREE.MeshStandardMaterial({ color: 0x7dd3fc })
+      );
+      rackTop.position.y = 0.58;
+      [-0.78, 0.78].forEach((px) => {
+        const post = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.04, 0.04, 0.6, 10),
+          new THREE.MeshStandardMaterial({ color: 0x38bdf8 })
+        );
+        post.position.set(px, 0.3, 0);
+        rackGroup.add(post);
+      });
+      rackGroup.add(rackBase, rackTop);
+      [0xff2e93, 0xffd000, 0x12b886, 0x00bbf9, 0x9b27eb].forEach((col, i) => {
+        const tx = -0.52 + i * 0.26;
+        const tube = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.075, 0.075, 0.85, 16),
+          new THREE.MeshPhysicalMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.42 })
+        );
+        tube.position.set(tx, 0.52, 0);
+        const liq = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.06, 0.06, 0.48, 14),
+          new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.25 })
+        );
+        liq.position.set(tx, 0.34, 0);
+        rackGroup.add(tube, liq);
+      });
+      rackGroup.position.set(2.35, 2.28, -3.88);
+      scene.add(rackGroup);
+
+      // High-Contrast Lab Background Themes (all keep Beaker crystal-clear!)
+      const LAB_THEMES = [
+        { name: "Deep Lab", skyBg: 0x162447, wallTint: 0xffffff, tableTint: 0x263248, matTint: 0x164e63 },
+        { name: "Emerald Lab", skyBg: 0x0f2f2b, wallTint: 0x99f6e4, tableTint: 0x1f3a36, matTint: 0x115e59 },
+        { name: "Purple Lab", skyBg: 0x241744, wallTint: 0xd8b4fe, tableTint: 0x2e234e, matTint: 0x4c1d95 },
+      ];
+      let currentThemeIdx = 0;
+
+      function applyLabTheme(idx) {
+        const th = LAB_THEMES[idx];
+        scene.background = new THREE.Color(th.skyBg);
+        scene.fog.color.setHex(th.skyBg);
+        backWallMat.color.setHex(th.wallTint);
+        tableTop.material.color.setHex(th.tableTint);
+        labMat.material.color.setHex(th.matTint);
+        document.getElementById("theme-label").textContent = th.name;
+      }
+
+      // 3D Toolbox on Left-Center of Bench (sized so ALL items fit comfortably inside!)
+      const toolboxGroup = new THREE.Group();
+      toolboxGroup.position.set(-2.95, 0, 0.25);
+      scene.add(toolboxGroup);
+
+      const boxFloor = new THREE.Mesh(
+        new THREE.BoxGeometry(3.3, 0.14, 4.95),
+        new THREE.MeshStandardMaterial({ color: 0xff922b, roughness: 0.42 })
+      );
+      boxFloor.position.y = 0.07;
+      boxFloor.receiveShadow = true;
+      toolboxGroup.add(boxFloor);
+
+      const boxTrimMat = new THREE.MeshStandardMaterial({ color: 0xffd43b, roughness: 0.35 });
+      [
+        [3.3, 0.4, 0.14, 0, 0.26, -2.4],
+        [3.3, 0.4, 0.14, 0, 0.26, 2.4],
+        [0.14, 0.4, 4.95, -1.58, 0.26, 0],
+        [0.14, 0.4, 4.95, 1.58, 0.26, 0],
+      ].forEach(([w, h, d, x, y, z]) => {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), boxTrimMat);
+        m.position.set(x, y, z);
+        m.castShadow = true;
+        m.receiveShadow = true;
+        toolboxGroup.add(m);
+      });
+
+      // Clean Target Circles (NO disturbing words in the middle!)
+      const beakerTargetPos = new THREE.Vector3(-0.05, 0.04, 0.18);
+      const paperTargetPos = new THREE.Vector3(2.15, 0.06, 0.22);
+
+      function createTargetRing(colorHex, radius) {
+        const group = new THREE.Group();
+        const ringMat = new THREE.MeshBasicMaterial({
+          color: colorHex,
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: 0.92,
+        });
+        const ring = new THREE.Mesh(new THREE.RingGeometry(radius * 0.74, radius, 48), ringMat);
+        ring.rotation.x = -Math.PI / 2;
+        const diskMat = new THREE.MeshBasicMaterial({
+          color: colorHex,
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: 0.24,
+        });
+        const innerDisk = new THREE.Mesh(new THREE.CircleGeometry(radius * 0.72, 40), diskMat);
+        innerDisk.rotation.x = -Math.PI / 2;
+        group.userData = { ringMat, diskMat, defaultColor: colorHex };
+        group.add(ring, innerDisk);
+        group.visible = false;
+        scene.add(group);
+        return group;
+      }
+
+      const beakerRing = createTargetRing(0x38bdf8, 1.0);
+      beakerRing.position.copy(beakerTargetPos).setY(0.05);
+
+      const pourRing = createTargetRing(0x22d3ee, 1.0);
+      pourRing.position.copy(beakerTargetPos).setY(0.05);
+
+      const paperRing = createTargetRing(0x34d399, 1.25);
+      paperRing.position.copy(paperTargetPos).setY(0.05);
+
+      const inkRing = createTargetRing(0xf472b6, 0.85);
+      inkRing.position.set(paperTargetPos.x, 0.1, paperTargetPos.z + 0.84);
+
+      function setRingHighlight(ring, isHot) {
+        if (!ring || !ring.visible) return;
+        const c = isHot ? 0x10b981 : ring.userData.defaultColor;
+        ring.userData.ringMat.color.setHex(c);
+        ring.userData.diskMat.color.setHex(c);
+        ring.userData.diskMat.opacity = isHot ? 0.5 : 0.24;
+      }
+
+      // Clean bouncing arrow above current active item (no text blocking middle!)
+      const pointerArrow = new THREE.Group();
+      const arrowCone = new THREE.Mesh(
+        new THREE.ConeGeometry(0.18, 0.38, 16),
+        new THREE.MeshStandardMaterial({ color: 0xff2e93, emissive: 0xff2e93, emissiveIntensity: 0.45 })
+      );
+      arrowCone.rotation.x = Math.PI;
+      pointerArrow.add(arrowCone);
+      scene.add(pointerArrow);
+
+      /* =========================================================================
+         4. BUILD HIGH-CONTRAST 3D LAB ITEMS + 4 DIFFERENT SKETCH PENS
+         ========================================================================= */
+      const draggables = [];
+
+      // --- 4A. High-Contrast Glass Beaker ---
+      function makeBeakerScaleTexture() {
+        const c = document.createElement("canvas");
+        c.width = 512;
+        c.height = 256;
+        const ctx = c.getContext("2d");
+        ctx.clearRect(0, 0, c.width, c.height);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.98)";
+        ctx.fillStyle = "rgba(255, 255, 255, 1.0)";
+        ctx.lineWidth = 6;
+        ctx.font = "bold 26px sans-serif";
+        [50, 100, 150, 200].forEach((ml, i) => {
+          const y = 205 - i * 44;
+          ctx.beginPath();
+          ctx.moveTo(205, y);
+          ctx.lineTo(255, y);
+          ctx.stroke();
+          // Minor mid-tick
+          if (i < 3) {
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(215, y - 22);
+            ctx.lineTo(245, y - 22);
+            ctx.stroke();
+            ctx.lineWidth = 6;
+          }
+          ctx.fillText(ml + " ml", 264, y + 8);
+        });
+        return new THREE.CanvasTexture(c);
+      }
+
+      const beakerGroup = new THREE.Group();
+      beakerGroup.userData = {
+        id: "beaker",
+        homePos: new THREE.Vector3(-3.55, 0.15, -1.1),
+        homeRot: new THREE.Euler(0, 0, 0),
+        placed: false,
+      };
+
+      const beakerWall = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.86, 0.82, 2.55, 36, 1, true),
+        new THREE.MeshPhysicalMaterial({
+          color: 0xe0f7ff,
+          transparent: true,
+          opacity: 0.42,
+          roughness: 0.06,
+          metalness: 0.08,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+        })
+      );
+      beakerWall.position.y = 1.28;
+      beakerWall.renderOrder = 3;
+      beakerGroup.add(beakerWall);
+
+      const beakerMarkings = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.868, 0.828, 2.35, 36, 1, true),
+        new THREE.MeshBasicMaterial({
+          map: makeBeakerScaleTexture(),
+          transparent: true,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+        })
+      );
+      beakerMarkings.position.y = 1.24;
+      beakerMarkings.rotation.y = Math.PI; // Rotate 180° so ml readings face FRONTSIDE (+Z) toward user!
+      beakerMarkings.renderOrder = 4;
+      beakerGroup.add(beakerMarkings);
+
+      const beakerBottom = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.82, 0.82, 0.1, 36),
+        new THREE.MeshStandardMaterial({ color: 0xbae6fd, transparent: true, opacity: 0.85, roughness: 0.15 })
+      );
+      beakerBottom.position.y = 0.05;
+      beakerBottom.castShadow = true;
+      beakerGroup.add(beakerBottom);
+
+      const beakerRim = new THREE.Mesh(
+        new THREE.TorusGeometry(0.86, 0.055, 14, 36),
+        new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x38bdf8, emissiveIntensity: 0.25, roughness: 0.1 })
+      );
+      beakerRim.rotation.x = Math.PI / 2;
+      beakerRim.position.y = 2.55;
+      beakerGroup.add(beakerRim);
+
+      const beakerWater = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.79, 0.77, 1.0, 32),
+        new THREE.MeshPhysicalMaterial({
+          color: 0x00d4ff,
+          transparent: true,
+          opacity: 0.56,
+          roughness: 0.1,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+        })
+      );
+      beakerWater.position.y = 0.09;
+      beakerWater.scale.set(1, 0.001, 1);
+      beakerWater.renderOrder = 2;
+      beakerWater.visible = false;
+      beakerGroup.add(beakerWater);
+
+      const supportClipGroup = new THREE.Group();
+      const supportRod = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.045, 0.045, 2.15, 16),
+        new THREE.MeshStandardMaterial({ color: 0xffd43b, roughness: 0.25 })
+      );
+      supportRod.rotation.z = Math.PI / 2;
+      supportRod.position.y = 2.63;
+      const clipBody = new THREE.Mesh(
+        new THREE.BoxGeometry(0.28, 0.2, 0.18),
+        new THREE.MeshStandardMaterial({ color: 0xff5c8a, roughness: 0.3 })
+      );
+      clipBody.position.y = 2.63;
+      supportClipGroup.add(supportRod, clipBody);
+      supportClipGroup.visible = false;
+      beakerGroup.add(supportClipGroup);
+
+      beakerGroup.position.copy(beakerGroup.userData.homePos);
+      scene.add(beakerGroup);
+      draggables.push(beakerGroup);
+
+      // --- 4B. Water Bottle ---
+      const bottleGroup = new THREE.Group();
+      bottleGroup.userData = {
+        id: "bottle",
+        homePos: new THREE.Vector3(-1.98, 0.15, -1.1),
+        homeRot: new THREE.Euler(0, 0, 0),
+        placed: false,
+      };
+      const bottleBody = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.38, 0.4, 1.5, 24),
+        new THREE.MeshPhysicalMaterial({ color: 0x74c0fc, transparent: true, opacity: 0.72, roughness: 0.12 })
+      );
+      bottleBody.position.y = 0.75;
+      bottleBody.castShadow = true;
+      const bottleWater = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.34, 0.36, 1.1, 20),
+        new THREE.MeshStandardMaterial({ color: 0x00bbf9, roughness: 0.2 })
+      );
+      bottleWater.position.y = 0.56;
+      const bottleCap = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.18, 0.24, 0.3, 20),
+        new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.25 })
+      );
+      bottleCap.position.y = 1.65;
+      const bottleSpout = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.035, 0.055, 0.58, 12),
+        new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 })
+      );
+      bottleSpout.position.set(0.2, 1.98, 0);
+      bottleSpout.rotation.z = -0.58;
+      bottleGroup.add(bottleBody, bottleWater, bottleCap, bottleSpout);
+      bottleGroup.position.copy(bottleGroup.userData.homePos);
+      scene.add(bottleGroup);
+      draggables.push(bottleGroup);
+
+      // Stream connects spout tip (y=2.86) directly down into beaker water (y=0.36)
+      const pourStream = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.035, 0.065, 2.5, 14),
+        new THREE.MeshPhysicalMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.92 })
+      );
+      pourStream.visible = false;
+      scene.add(pourStream);
+
+      const pourSplash = new THREE.Mesh(
+        new THREE.RingGeometry(0.12, 0.42, 28),
+        new THREE.MeshBasicMaterial({ color: 0xe0f7ff, side: THREE.DoubleSide, transparent: true, opacity: 0.85 })
+      );
+      pourSplash.rotation.x = -Math.PI / 2;
+      pourSplash.visible = false;
+      scene.add(pourSplash);
+
+      // --- 4C. Filter Paper with Dynamic Multi-Pen Shader ---
+      const paperShaderUniforms = {
+        uTime: { value: 0 },
+        uWaterCm: { value: 0 },
+        uHasPencil: { value: 0 },
+        uHasInk: { value: 0 },
+        uInkProgress: { value: 0 },
+        uSelectedBand: { value: -1 },
+        uInkColor: { value: new THREE.Vector3(0.07, 0.07, 0.1) },
+        uWeightPurple: { value: 1.0 },
+        uWeightPink: { value: 1.0 },
+        uWeightYellow: { value: 1.0 },
+        uWeightBlue: { value: 1.0 },
+        uWeightCyan: { value: 1.0 },
+      };
+
+      const paperVertexShader = `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `;
+
+      const paperFragmentShader = `
+        uniform float uTime;
+        uniform float uWaterCm;
+        uniform float uHasPencil;
+        uniform float uHasInk;
+        uniform float uInkProgress;
+        uniform float uSelectedBand;
+        uniform vec3 uInkColor;
+        uniform float uWeightPurple;
+        uniform float uWeightPink;
+        uniform float uWeightYellow;
+        uniform float uWeightBlue;
+        uniform float uWeightCyan;
+        varying vec2 vUv;
+
+        float hash(vec2 p) {
+          return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+        }
+        float noise(vec2 p) {
+          vec2 i = floor(p);
+          vec2 f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          float a = hash(i);
+          float b = hash(i + vec2(1.0, 0.0));
+          float c = hash(i + vec2(0.0, 1.0));
+          float d = hash(i + vec2(1.0, 1.0));
+          return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+        }
+
+        float bandProfile(float y, float center, float sigma) {
+          float d = (y - center) / sigma;
+          return exp(-d * d);
+        }
+
+        void main() {
+          float yCm = (vUv.y / 0.92) * 10.0;
+          float xNorm = vUv.x;
+
+          float fiber = noise(vec2(xNorm * 35.0, vUv.y * 90.0));
+          vec3 dryPaper = vec3(0.995, 0.988, 0.965) - 0.025 * fiber;
+          vec3 wetPaper = vec3(0.89, 0.96, 1.00) - 0.03 * fiber;
+          float edge = step(xNorm, 0.025) + step(0.975, xNorm) + step(vUv.y, 0.015) + step(0.985, vUv.y);
+
+          float tickDist = abs(fract(yCm + 0.5) - 0.5);
+          float isMajor = step(abs(mod(yCm + 0.1, 2.0) - 0.1), 0.15);
+          float tickLen = mix(0.09, 0.16, isMajor);
+          float onTick = step(xNorm, tickLen) * (1.0 - smoothstep(0.035, 0.075, tickDist)) * step(yCm, 10.1);
+
+          float frontWave = (noise(vec2(xNorm * 8.0, uTime * 0.45)) - 0.5) * 0.22;
+          float frontCm = uWaterCm + frontWave;
+          float isWet = 1.0 - smoothstep(frontCm - 0.16, frontCm + 0.06, yCm);
+          isWet *= step(0.001, uWaterCm);
+
+          vec3 col = mix(dryPaper, wetPaper, isWet);
+
+          float frontGlow = exp(-pow((yCm - frontCm) / 0.18, 2.0)) * step(0.1, uWaterCm);
+          col = mix(col, vec3(0.05, 0.78, 0.98), frontGlow * 0.65);
+
+          float guideLine = exp(-pow((yCm - 2.0) / 0.055, 2.0)) * step(0.45, sin(xNorm * 52.0));
+          col = mix(col, vec3(0.65, 0.72, 0.85), guideLine * 0.55 * (1.0 - uHasPencil));
+
+          if (uHasPencil > 0.5) {
+            float pLine = exp(-pow((yCm - 2.0) / 0.06, 2.0)) * smoothstep(0.08, 0.14, xNorm) * smoothstep(0.92, 0.86, xNorm);
+            col = mix(col, vec3(0.28, 0.31, 0.36), pLine * 0.9);
+          }
+
+          if (uHasInk > 0.5) {
+            float xCenter = 0.5;
+            float dSolvent = max(0.0, uWaterCm - 2.0);
+            float sepFactor = clamp(dSolvent / 8.0, 0.0, 1.0);
+            float xHalfWidth = mix(0.20, 0.34, sepFactor);
+
+            float xFeather = (noise(vec2(yCm * 2.5, xNorm * 10.0)) - 0.5) * 0.055;
+            float xMask = 1.0 - smoothstep(xHalfWidth - 0.08, xHalfWidth + 0.06, abs(xNorm - xCenter) + xFeather);
+            float drawMask = step(abs(xNorm - xCenter), mix(0.01, 0.5, uInkProgress));
+
+            float originDot = bandProfile(yCm, 2.0, 0.28) * xMask * drawMask;
+            float inkRemain = 1.0 - smoothstep(0.0, 2.5, dSolvent);
+            col = mix(col, uInkColor, originDot * inkRemain * 0.97);
+
+            if (dSolvent > 0.05) {
+              float appear = smoothstep(0.05, 0.75, dSolvent);
+              float sigma = mix(0.24, 0.48, sepFactor);
+
+              float yPurple = 2.0 + 0.22 * dSolvent;
+              float yPink   = 2.0 + 0.42 * dSolvent;
+              float yYellow = 2.0 + 0.60 * dSolvent;
+              float yBlue   = 2.0 + 0.78 * dSolvent;
+              float yCyan   = 2.0 + 0.92 * dSolvent;
+
+              vec3 cPurple = vec3(0.61, 0.15, 0.92);
+              vec3 cPink   = vec3(1.00, 0.16, 0.56);
+              vec3 cYellow = vec3(1.00, 0.84, 0.00);
+              vec3 cBlue   = vec3(0.10, 0.38, 0.96);
+              vec3 cCyan   = vec3(0.00, 0.88, 0.98);
+
+              float wPurple = bandProfile(yCm, yPurple, sigma) * xMask * appear * uWeightPurple;
+              float wPink   = bandProfile(yCm, yPink,   sigma) * xMask * appear * uWeightPink;
+              float wYellow = bandProfile(yCm, yYellow, sigma) * xMask * appear * uWeightYellow;
+              float wBlue   = bandProfile(yCm, yBlue,   sigma) * xMask * appear * uWeightBlue;
+              float wCyan   = bandProfile(yCm, yCyan,   sigma) * xMask * appear * uWeightCyan;
+
+              float pulse = 0.5 + 0.5 * sin(uTime * 6.0);
+              if (uSelectedBand >= 0.0 && uSelectedBand < 0.5) wPurple *= (1.0 + 0.35 * pulse);
+              if (uSelectedBand >= 0.5 && uSelectedBand < 1.5) wPink   *= (1.0 + 0.35 * pulse);
+              if (uSelectedBand >= 1.5 && uSelectedBand < 2.5) wYellow *= (1.0 + 0.35 * pulse);
+              if (uSelectedBand >= 2.5 && uSelectedBand < 3.5) wBlue   *= (1.0 + 0.35 * pulse);
+              if (uSelectedBand >= 3.5 && uSelectedBand < 4.5) wCyan   *= (1.0 + 0.35 * pulse);
+
+              col = mix(col, cPurple, clamp(wPurple * 0.95, 0.0, 0.97));
+              col = mix(col, cPink,   clamp(wPink   * 0.95, 0.0, 0.97));
+              col = mix(col, cYellow, clamp(wYellow * 0.95, 0.0, 0.97));
+              col = mix(col, cBlue,   clamp(wBlue   * 0.95, 0.0, 0.97));
+              col = mix(col, cCyan,   clamp(wCyan   * 0.95, 0.0, 0.97));
+            }
+          }
+
+          col = mix(col, vec3(0.30, 0.38, 0.52), onTick * 0.85);
+          col = mix(col, vec3(0.55, 0.65, 0.82), clamp(edge, 0.0, 1.0) * 0.6);
+
+          gl_FragColor = vec4(col, 1.0);
+        }
+      `;
+
+      const paperGroup = new THREE.Group();
+      paperGroup.userData = {
+        id: "paper",
+        homePos: new THREE.Vector3(-3.65, 0.18, 1.18),
+        homeRot: new THREE.Euler(-Math.PI / 2, 0, 0),
+        placed: false,
+      };
+
+      const paperMaterial = new THREE.ShaderMaterial({
+        uniforms: paperShaderUniforms,
+        vertexShader: paperVertexShader,
+        fragmentShader: paperFragmentShader,
+        side: THREE.DoubleSide,
+      });
+
+      const PAPER_W = 1.15;
+      const PAPER_H = 2.65;
+      const paperMesh = new THREE.Mesh(new THREE.PlaneGeometry(PAPER_W, PAPER_H), paperMaterial);
+      paperMesh.castShadow = true;
+      paperMesh.renderOrder = 1;
+      paperGroup.add(paperMesh);
+
+      const band3DCallouts = PIGMENTS.map((p, idx) => {
+        const sp = create3DLabel(`${p.nameEn} • ${p.nameKn}`, "#ffffff", "#0f172a", p.hex, 1.42);
+        sp.visible = false;
+        sp.position.set(idx % 2 === 0 ? 1.42 : -1.42, 0, 0.08);
+        paperGroup.add(sp);
+        return sp;
+      });
+
+      paperGroup.position.copy(paperGroup.userData.homePos);
+      paperGroup.rotation.copy(paperGroup.userData.homeRot);
+      scene.add(paperGroup);
+      draggables.push(paperGroup);
+
+      // --- 4D. 4 Different Colored 3D Sketch Pens in Toolbox! ---
+      const penHomeSlots = [
+        new THREE.Vector3(-2.62, 0.25, 0.55),
+        new THREE.Vector3(-2.34, 0.25, 0.55),
+        new THREE.Vector3(-2.06, 0.25, 0.55),
+        new THREE.Vector3(-1.78, 0.25, 0.55),
+      ];
+
+      const penGroups = SKETCH_PENS.map((penCfg, idx) => {
+        const pg = new THREE.Group();
+        pg.userData = {
+          id: penCfg.id,
+          isPen: true,
+          penCfg,
+          homePos: penHomeSlots[idx].clone(),
+          homeRot: new THREE.Euler(Math.PI / 2, 0, 0),
+        };
+        const barrel = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.08, 0.08, 1.38, 16),
+          new THREE.MeshStandardMaterial({ color: penCfg.hex, roughness: 0.35 })
+        );
+        const stripe = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.084, 0.084, 0.24, 16),
+          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 })
+        );
+        stripe.position.y = 0.36;
+        const cone = new THREE.Mesh(
+          new THREE.ConeGeometry(0.08, 0.26, 16),
+          new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.4 })
+        );
+        cone.position.y = 0.82;
+        const tip = new THREE.Mesh(
+          new THREE.ConeGeometry(0.028, 0.12, 12),
+          new THREE.MeshStandardMaterial({ color: penCfg.hex })
+        );
+        tip.position.y = 1.0;
+
+        pg.add(barrel, stripe, cone, tip);
+        pg.position.copy(pg.userData.homePos);
+        pg.rotation.copy(pg.userData.homeRot);
+        scene.add(pg);
+        draggables.push(pg);
+        return pg;
+      });
+
+      // --- 4E. Wooden Pencil ---
+      const pencilGroup = new THREE.Group();
+      pencilGroup.userData = {
+        id: "pencil",
+        homePos: new THREE.Vector3(-2.22, 0.24, 2.05),
+        homeRot: new THREE.Euler(Math.PI / 2, 0, Math.PI / 2),
+        placed: false,
+      };
+      const pencilBody = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.07, 0.07, 1.38, 6),
+        new THREE.MeshStandardMaterial({ color: 0xfcc419, roughness: 0.4 })
+      );
+      const pencilWood = new THREE.Mesh(
+        new THREE.ConeGeometry(0.07, 0.25, 12),
+        new THREE.MeshStandardMaterial({ color: 0xffd8a8, roughness: 0.6 })
+      );
+      pencilWood.position.y = 0.81;
+      const pencilLead = new THREE.Mesh(
+        new THREE.ConeGeometry(0.024, 0.1, 10),
+        new THREE.MeshStandardMaterial({ color: 0x343a40 })
+      );
+      pencilLead.position.y = 0.95;
+      const pencilEraser = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.072, 0.072, 0.17, 12),
+        new THREE.MeshStandardMaterial({ color: 0xff8787, roughness: 0.5 })
+      );
+      pencilEraser.position.y = -0.76;
+      pencilGroup.add(pencilBody, pencilWood, pencilLead, pencilEraser);
+      pencilGroup.position.copy(pencilGroup.userData.homePos);
+      pencilGroup.rotation.copy(pencilGroup.userData.homeRot);
+      scene.add(pencilGroup);
+      draggables.push(pencilGroup);
+
+      /* =========================================================================
+         5. GLOWING SPARKLE PARTICLES
+         ========================================================================= */
+      const SPARKLE_COUNT = 100;
+      const sparklePositions = new Float32Array(SPARKLE_COUNT * 3);
+      const sparkleColors = new Float32Array(SPARKLE_COUNT * 3);
+      const sparkleMeta = [];
+
+      for (let i = 0; i < SPARKLE_COUNT; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const radius = 0.45 + Math.random() * 0.72;
+        const yOff = Math.random() * 2.4;
+        const pColor = PIGMENTS[i % PIGMENTS.length].rgb;
+        sparkleColors[i * 3] = pColor[0];
+        sparkleColors[i * 3 + 1] = pColor[1];
+        sparkleColors[i * 3 + 2] = pColor[2];
+        sparkleMeta.push({ angle, radius, yOff, speed: 0.35 + Math.random() * 0.55 });
+      }
+
+      function makeSparkleTexture() {
+        const c = document.createElement("canvas");
+        c.width = 64;
+        c.height = 64;
+        const ctx = c.getContext("2d");
+        const grad = ctx.createRadialGradient(32, 32, 2, 32, 32, 30);
+        grad.addColorStop(0, "rgba(255,255,255,1)");
+        grad.addColorStop(0.35, "rgba(255,255,255,0.85)");
+        grad.addColorStop(1, "rgba(255,255,255,0)");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 64, 64);
+        return new THREE.CanvasTexture(c);
+      }
+
+      const sparkleGeo = new THREE.BufferGeometry();
+      sparkleGeo.setAttribute("position", new THREE.BufferAttribute(sparklePositions, 3));
+      sparkleGeo.setAttribute("color", new THREE.BufferAttribute(sparkleColors, 3));
+
+      const sparkleMat = new THREE.PointsMaterial({
+        size: 0.25,
+        map: makeSparkleTexture(),
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.92,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      });
+
+      const sparkles = new THREE.Points(sparkleGeo, sparkleMat);
+      sparkles.renderOrder = 5;
+      sparkles.visible = false;
+      scene.add(sparkles);
+
+      /* =========================================================================
+         6. EFFORTLESS DRAG-AND-DROP (AUTO-SNAP IN CIRCLE + CLICK-TO-PLACE!)
+         ========================================================================= */
+      const raycaster = new THREE.Raycaster();
+      const pointer = new THREE.Vector2();
+      const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -1.5);
+      const dragHit = new THREE.Vector3();
+
+      let activeDrag = null;
+      let pointerDownPos = { x: 0, y: 0 };
+
+      function updatePointer(e) {
+        const rect = renderer.domElement.getBoundingClientRect();
+        pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      }
+
+      function getDraggableOwner(obj) {
+        let cur = obj;
+        while (cur) {
+          if (draggables.includes(cur)) return cur;
+          cur = cur.parent;
+        }
+        return null;
+      }
+
+      function isItemAllowedForCurrentStep(owner) {
+        const id = owner.userData.id;
+        if (state.step === 1 && id === "beaker") return true;
+        if (state.step === 2 && id === "bottle") return true;
+        if (state.step === 3 && id === "paper") return true;
+        if (state.step === 4 && (owner.userData.isPen || id === "pencil")) return true;
+        if (state.step === 5 && id === "pencil" && !state.hasPencilLine) return true;
+        return false;
+      }
+
+      function getTargetForItem(owner) {
+        if (owner.userData.id === "beaker" || owner.userData.id === "bottle") return beakerTargetPos;
+        return paperTargetPos;
+      }
+
+      function getActiveRingForItem(owner) {
+        if (owner.userData.id === "beaker") return beakerRing;
+        if (owner.userData.id === "bottle") return pourRing;
+        if (owner.userData.id === "paper") return paperRing;
+        return inkRing;
+      }
+
+      renderer.domElement.addEventListener("pointerdown", (e) => {
+        pointerDownPos = { x: e.clientX, y: e.clientY };
+        updatePointer(e);
+        raycaster.setFromCamera(pointer, camera);
+
+        const hits = raycaster.intersectObjects(draggables, true);
+        if (hits.length > 0) {
+          const owner = getDraggableOwner(hits[0].object);
+          if (owner && isItemAllowedForCurrentStep(owner)) {
+            activeDrag = owner;
+            controls.enabled = false;
+            container.classList.add("dragging");
+            sound.playPop(480);
+
+            if (owner.userData.isPen || owner.userData.id === "pencil") {
+              owner.rotation.set(0.15, 0, -0.35);
+            } else if (owner.userData.id === "paper") {
+              owner.rotation.set(-Math.PI / 2, 0, 0);
+            }
+          }
+        }
+      });
+
+      renderer.domElement.addEventListener("pointermove", (e) => {
+        updatePointer(e);
+        raycaster.setFromCamera(pointer, camera);
+
+        if (activeDrag) {
+          if (raycaster.ray.intersectPlane(dragPlane, dragHit)) {
+            const targetPos = getTargetForItem(activeDrag);
+            const ring = getActiveRingForItem(activeDrag);
+            const clampedX = THREE.MathUtils.clamp(dragHit.x, -5.0, 5.0);
+            const clampedZ = THREE.MathUtils.clamp(dragHit.z, -2.5, 2.5);
+            const dist = Math.hypot(clampedX - targetPos.x, clampedZ - targetPos.z);
+
+            setRingHighlight(ring, dist < 2.6);
+
+            // Effortless magnetic auto-snap as soon as item comes right inside the circle!
+            if (dist < 1.15) {
+              const item = activeDrag;
+              activeDrag = null;
+              controls.enabled = true;
+              container.classList.remove("dragging");
+              executePlacement(item);
+              return;
+            }
+
+            activeDrag.position.lerp(new THREE.Vector3(clampedX, 1.5, clampedZ), 0.65);
+          }
+          return;
+        }
+
+        // Hover cursor only (no intrusive text over the middle!)
+        if (state.step >= 6 && state.waterCm > ORIGIN_CM + 0.4) {
+          const paperHits = raycaster.intersectObject(paperMesh, false);
+          if (paperHits.length > 0 && findBandAtUvY(paperHits[0].uv.y)) {
+            container.classList.add("band-hover");
+            return;
+          }
+        }
+        container.classList.remove("band-hover");
+      });
+
+      renderer.domElement.addEventListener("pointerup", (e) => {
+        const moveDist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+
+        if (activeDrag) {
+          const item = activeDrag;
+          activeDrag = null;
+          controls.enabled = true;
+          container.classList.remove("dragging");
+          // If clicked (barely dragged) OR released anywhere near the circle, place effortlessly!
+          const target = getTargetForItem(item);
+          const dist = Math.hypot(item.position.x - target.x, item.position.z - target.z);
+          if (moveDist < 8 || dist < 2.8) {
+            executePlacement(item);
+          } else {
+            setRingHighlight(getActiveRingForItem(item), false);
+            returnHome(item);
+          }
+          return;
+        }
+
+        // Click detection for separated color bands / 3D tags
+        if (moveDist < 7 && state.step >= 6 && state.waterCm > ORIGIN_CM + 0.4) {
+          updatePointer(e);
+          raycaster.setFromCamera(pointer, camera);
+
+          const tagHits = raycaster.intersectObjects(band3DCallouts, false);
+          if (tagHits.length > 0) {
+            const idx = band3DCallouts.indexOf(tagHits[0].object);
+            if (idx >= 0 && band3DCallouts[idx].visible) {
+              showBandInfoCard(getBandDistances()[idx], e.clientX, e.clientY);
+              return;
+            }
+          }
+
+          const paperHits = raycaster.intersectObject(paperMesh, false);
+          if (paperHits.length > 0) {
+            const band = findBandAtUvY(paperHits[0].uv.y);
+            if (band) {
+              showBandInfoCard(band, e.clientX, e.clientY);
+            }
+          }
+        }
+      });
+
+      /* =========================================================================
+         7. STEP-BY-STEP ASSEMBLY HANDLERS & TWEEN ANIMATIONS
+         ========================================================================= */
+      const activeTweens = [];
+      function addTween(duration, onUpdate, onDone) {
+        activeTweens.push({ elapsed: 0, duration, onUpdate, onDone });
+      }
+
+      function focusCamera(camPos, targetPos, duration = 0.85) {
+        const startCam = camera.position.clone();
+        const startTgt = controls.target.clone();
+        addTween(duration, (t) => {
+          camera.position.lerpVectors(startCam, camPos, t);
+          controls.target.lerpVectors(startTgt, targetPos, t);
+        });
+      }
+
+      function returnHome(item) {
+        const startPos = item.position.clone();
+        const startRot = item.rotation.clone();
+        addTween(0.32, (t) => {
+          item.position.lerpVectors(startPos, item.userData.homePos, t);
+          item.rotation.set(
+            THREE.MathUtils.lerp(startRot.x, item.userData.homeRot.x, t),
+            THREE.MathUtils.lerp(startRot.y, item.userData.homeRot.y, t),
+            THREE.MathUtils.lerp(startRot.z, item.userData.homeRot.z, t)
+          );
+        });
+      }
+
+      function applySketchPenMixture(penCfg) {
+        state.selectedPen = penCfg;
+        paperShaderUniforms.uInkColor.value.set(penCfg.rgb[0], penCfg.rgb[1], penCfg.rgb[2]);
+        paperShaderUniforms.uWeightPurple.value = penCfg.weights[0];
+        paperShaderUniforms.uWeightPink.value = penCfg.weights[1];
+        paperShaderUniforms.uWeightYellow.value = penCfg.weights[2];
+        paperShaderUniforms.uWeightBlue.value = penCfg.weights[3];
+        paperShaderUniforms.uWeightCyan.value = penCfg.weights[4];
+        renderBandLegend();
+      }
+
+      function executePlacement(item) {
+        const id = item.userData.id;
+
+        if (state.step === 1 && id === "beaker") {
+          sound.playSnap();
+          setRingHighlight(beakerRing, false);
+          const start = item.position.clone();
+          const end = new THREE.Vector3(beakerTargetPos.x, 0.04, beakerTargetPos.z);
+          addTween(
+            0.35,
+            (t) => item.position.lerpVectors(start, end, t),
+            () => {
+              item.userData.placed = true;
+              advanceStep(2);
+            }
+          );
+          return;
+        }
+
+        if (state.step === 2 && id === "bottle") {
+          sound.playWaterSplash(1.25);
+          setRingHighlight(pourRing, false);
+          // Exact spout tip coordinates when tilted 1.15 rad land right above beaker center (y = 2.86)
+          const pourPos = new THREE.Vector3(beakerTargetPos.x + 1.88, 1.62, beakerTargetPos.z);
+          const start = item.position.clone();
+          const startRotZ = item.rotation.z;
+          beakerWater.visible = true;
+
+          addTween(
+            0.35,
+            (t) => {
+              item.position.lerpVectors(start, pourPos, t);
+              item.rotation.z = THREE.MathUtils.lerp(startRotZ, 1.15, t);
+            },
+            () => {
+              pourStream.position.set(beakerTargetPos.x, 1.61, beakerTargetPos.z);
+              pourStream.visible = true;
+              pourSplash.position.set(beakerTargetPos.x, 0.14, beakerTargetPos.z);
+              pourSplash.visible = true;
+              addTween(
+                1.1,
+                (t) => {
+                  const waterH = 0.52 * t;
+                  beakerWater.scale.set(1, Math.max(0.01, waterH), 1);
+                  beakerWater.position.y = 0.09 + waterH * 0.5;
+                  const surfY = 0.14 + waterH;
+                  pourSplash.position.y = surfY;
+                  const pulse = 0.8 + Math.sin(t * 26) * 0.25;
+                  pourSplash.scale.set(pulse, pulse, 1);
+                  pourStream.scale.set(0.92 + Math.sin(t * 30) * 0.12, 1.0, 0.92 + Math.sin(t * 30) * 0.12);
+                },
+                () => {
+                  pourStream.visible = false;
+                  pourSplash.visible = false;
+                  state.beakerWaterLevel = 1;
+                  returnHome(item);
+                  advanceStep(3);
+                }
+              );
+            }
+          );
+          return;
+        }
+
+        if (state.step === 3 && id === "paper") {
+          sound.playSnap();
+          setRingHighlight(paperRing, false);
+          const start = item.position.clone();
+          const end = new THREE.Vector3(paperTargetPos.x, 0.06, paperTargetPos.z);
+          addTween(
+            0.35,
+            (t) => {
+              item.position.lerpVectors(start, end, t);
+              item.rotation.set(-Math.PI / 2, 0, 0);
+            },
+            () => {
+              item.userData.placed = true;
+              advanceStep(4);
+            }
+          );
+          return;
+        }
+
+        if ((state.step === 4 || state.step === 5) && id === "pencil") {
+          sound.playPop(680);
+          state.hasPencilLine = true;
+          paperShaderUniforms.uHasPencil.value = 1.0;
+          document.getElementById("chk-pencil").textContent = "✅";
+          document.getElementById("item-card-pencil").classList.add("done");
+          returnHome(item);
+          return;
+        }
+
+        if (state.step === 4 && item.userData.isPen) {
+          sound.playPop(580);
+          setRingHighlight(inkRing, false);
+          applySketchPenMixture(item.userData.penCfg);
+          state.hasInkDot = true;
+          paperShaderUniforms.uHasInk.value = 1.0;
+
+          const drawStart = new THREE.Vector3(paperTargetPos.x - 0.2, 1.02, paperTargetPos.z + 0.84);
+          const drawEnd = new THREE.Vector3(paperTargetPos.x + 0.2, 1.02, paperTargetPos.z + 0.84);
+          item.position.copy(drawStart);
+          item.rotation.set(Math.PI * 0.85, 0, 0);
+
+          addTween(
+            0.55,
+            (t) => {
+              item.position.lerpVectors(drawStart, drawEnd, t);
+              paperShaderUniforms.uInkProgress.value = t;
+            },
+            () => {
+              returnHome(item);
+              advanceStep(5);
+            }
+          );
+          return;
+        }
+
+        returnHome(item);
+      }
+
+      // Step 5: Place in Water
+      document.getElementById("btn-place-water").addEventListener("click", () => {
+        if (state.step !== 5) return;
+        document.getElementById("btn-place-water").classList.remove("visible");
+        sound.playPop(600);
+
+        const startPos = paperGroup.position.clone();
+        const startRotX = paperGroup.rotation.x;
+        const hoverPos = new THREE.Vector3(beakerTargetPos.x, 3.65, beakerTargetPos.z);
+        const dippedPos = new THREE.Vector3(beakerTargetPos.x, 1.62, beakerTargetPos.z);
+
+        focusCamera(new THREE.Vector3(0.15, 2.75, 5.75), new THREE.Vector3(0.0, 1.65, 0.18), 1.0);
+
+        addTween(
+          0.55,
+          (t) => {
+            paperGroup.position.lerpVectors(startPos, hoverPos, t);
+            paperGroup.rotation.x = THREE.MathUtils.lerp(startRotX, 0, t);
+          },
+          () => {
+            supportClipGroup.visible = true;
+            sound.playWaterSplash(0.75);
+            addTween(
+              0.65,
+              (t) => {
+                paperGroup.position.lerpVectors(hoverPos, dippedPos, t);
+              },
+              () => {
+                state.paperInBeaker = true;
+                sparkles.position.set(beakerTargetPos.x, 0.45, beakerTargetPos.z);
+                sparkles.visible = true;
+                advanceStep(6);
+              }
+            );
+          }
+        );
+      });
+
+      /* =========================================================================
+         8. LEFT-SIDE STEP UI & PEN PICKER
+         ========================================================================= */
+      const STEP_MESSAGES = {
+        1: {
+          en: "Step 1: Drag or click the Beaker to place it in the circle.",
+          kn: "ಹಂತ ೧: ಬೀಕರ್ ಅನ್ನು ವೃತ್ತಕ್ಕೆ ಎಳೆಯಿರಿ ಅಥವಾ ಕ್ಲಿಕ್ ಮಾಡಿ.",
+        },
+        2: {
+          en: "Step 2: Drag or click the Water Bottle to pour water.",
+          kn: "ಹಂತ ೨: ನೀರು ಸುರಿಯಲು ನೀರಿನ ಬಾಟಲಿಯನ್ನು ಎಳೆಯಿರಿ ಅಥವಾ ಕ್ಲಿಕ್ ಮಾಡಿ.",
+        },
+        3: {
+          en: "Step 3: Drag or click the Filter Paper onto the green circle.",
+          kn: "ಹಂತ ೩: ಫಿಲ್ಟರ್ ಪೇಪರ್ ಅನ್ನು ಹಸಿರು ವೃತ್ತಕ್ಕೆ ಎಳೆಯಿರಿ.",
+        },
+        4: {
+          en: "Step 4: Pick ANY Sketch Pen (Black, Green, Brown or Violet) & touch the paper!",
+          kn: "ಹಂತ ೪: ಯಾವುದೇ ಸ್ಕೆಚ್ ಪೆನ್ (ಕಪ್ಪು, ಹಸಿರು, ಕಂದು, ನೇರಳೆ) ಆಯ್ಕೆ ಮಾಡಿ ಶಾಯಿ ಹಚ್ಚಿ!",
+        },
+        5: {
+          en: "Step 5: Click 'Place in Water' below to start separation!",
+          kn: "ಹಂತ ೫: ಕೆಳಗಿನ 'ನೀರಿನಲ್ಲಿ ಇಡಿ' ಬಟನ್ ಒತ್ತಿರಿ!",
+        },
+        6: {
+          en: "Separating colors! Click any color band on the 3D paper to inspect.",
+          kn: "ಬಣ್ಣಗಳು ಬೇರ್ಪಡುತ್ತಿವೆ! ಮಾಹಿತಿಗೆ 3D ಬಣ್ಣದ ಮೇಲೆ ಕ್ಲಿಕ್ ಮಾಡಿ.",
+        },
+        7: {
+          en: "Done! Click any color band or try another Sketch Pen!",
+          kn: "ಪೂರ್ಣ! ಬಣ್ಣಗಳ ಮೇಲೆ ಕ್ಲಿಕ್ ಮಾಡಿ ಅಥವಾ ಬೇರೆ ಪೆನ್ ಪ್ರಯತ್ನಿಸಿ!",
+        },
+      };
+
+      function advanceStep(nextStep) {
+        state.step = nextStep;
+        const chip = document.getElementById("step-chip");
+        chip.textContent = nextStep <= 5 ? `Step ${nextStep} / 5` : nextStep === 6 ? "Running ✨" : "Done 🎉";
+        document.getElementById("step-desc-en").textContent = STEP_MESSAGES[nextStep].en;
+        document.getElementById("step-desc-kn").textContent = STEP_MESSAGES[nextStep].kn;
+
+        beakerRing.visible = nextStep === 1;
+        pourRing.visible = nextStep === 2;
+        paperRing.visible = nextStep === 3;
+        inkRing.visible = nextStep === 4;
+        pointerArrow.visible = nextStep >= 1 && nextStep <= 4;
+
+        document.getElementById("pen-picker-row").classList.toggle("visible", nextStep === 4);
+
+        const map = [
+          { step: 1, card: "item-card-beaker", chk: "chk-beaker" },
+          { step: 2, card: "item-card-bottle", chk: "chk-bottle" },
+          { step: 3, card: "item-card-paper", chk: "chk-paper" },
+          { step: 4, card: "item-card-pen", chk: "chk-pen" },
+        ];
+        map.forEach((m) => {
+          const cardEl = document.getElementById(m.card);
+          const chkEl = document.getElementById(m.chk);
+          cardEl.classList.remove("active-step", "done");
+          if (nextStep > m.step) {
+            cardEl.classList.add("done");
+            chkEl.textContent = "✅";
+          } else if (nextStep === m.step) {
+            cardEl.classList.add("active-step");
+            chkEl.textContent = "👉";
+          } else {
+            chkEl.textContent = "⏳";
+          }
+        });
+
+        document.getElementById("btn-place-water").classList.toggle("visible", nextStep === 5);
+        document.getElementById("sim-controls").classList.toggle("visible", nextStep >= 6);
+      }
+
+      // Click left-side cards to place items effortlessly!
+      document.getElementById("item-card-beaker").addEventListener("click", () => {
+        if (state.step === 1) executePlacement(beakerGroup);
+      });
+      document.getElementById("item-card-bottle").addEventListener("click", () => {
+        if (state.step === 2) executePlacement(bottleGroup);
+      });
+      document.getElementById("item-card-paper").addEventListener("click", () => {
+        if (state.step === 3) executePlacement(paperGroup);
+      });
+      document.getElementById("item-card-pencil").addEventListener("click", () => {
+        if (state.step === 4 || (state.step === 5 && !state.hasPencilLine)) executePlacement(pencilGroup);
+      });
+
+      // Populate Sketch Pen Picker buttons on left panel
+      const penPickerRow = document.getElementById("pen-picker-row");
+      SKETCH_PENS.forEach((penCfg, idx) => {
+        const btn = document.createElement("button");
+        btn.className = "pen-chip";
+        btn.style.background = penCfg.hex;
+        btn.textContent = penCfg.nameEn.replace(" Pen", "");
+        btn.addEventListener("click", () => {
+          if (state.step === 4) executePlacement(penGroups[idx]);
+        });
+        penPickerRow.appendChild(btn);
+      });
+
+      /* =========================================================================
+         9. BAND RAYCASTING, INFO CARDS & DYNAMIC LEGEND
+         ========================================================================= */
+      function getActivePigments() {
+        return PIGMENTS.map((p, idx) => ({ ...p, idx })).filter(
+          (p) => state.selectedPen.weights[p.idx] > 0.5
+        );
+      }
+
+      function getBandDistances() {
+        const dSolvent = Math.max(0, state.waterCm - ORIGIN_CM);
+        return getActivePigments().map((p) => ({
+          ...p,
+          cm: ORIGIN_CM + p.rf * dSolvent,
+          traveled: p.rf * dSolvent,
+        }));
+      }
+
+      function findBandAtUvY(uvY) {
+        const yCm = (uvY / 0.92) * 10.0;
+        const bands = getBandDistances();
+        let best = null;
+        let minDiff = 0.7;
+        for (const b of bands) {
+          const diff = Math.abs(yCm - b.cm);
+          if (diff < minDiff) {
+            minDiff = diff;
+            best = b;
+          }
+        }
+        return best;
+      }
+
+      function showBandInfoCard(band, clientX, clientY) {
+        sound.playMagicChime(band.idx);
+        state.selectedBandId = band.id;
+        paperShaderUniforms.uSelectedBand.value = band.idx;
+
+        const card = document.getElementById("info-card");
+        document.getElementById("info-swatch").style.background = band.hex;
+        document.getElementById("info-title").textContent = `${band.nameEn} (${band.nameKn})`;
+        document.getElementById("info-dist").textContent = `Band Height: ${band.cm.toFixed(1)} cm (+${band.traveled.toFixed(1)} cm)`;
+        document.getElementById("info-rf").textContent = `Rf: ${band.rf.toFixed(2)} • ${band.solubilityEn}`;
+        document.getElementById("info-rule").innerHTML = `
+          <strong>${band.solubilityEn} (${band.solubilityKn})</strong><br/>
+          Most soluble color travels the fastest (ಹೆಚ್ಚು ಕರಗುವ ಬಣ್ಣವು ವೇಗವಾಗಿ ಚಲಿಸುತ್ತದೆ).
+        `;
+
+        const left = THREE.MathUtils.clamp(clientX + 16, 20, window.innerWidth - 335);
+        const top = THREE.MathUtils.clamp(clientY - 60, 80, window.innerHeight - 210);
+        card.style.left = left + "px";
+        card.style.top = top + "px";
+        card.classList.add("visible");
+      }
+
+      document.getElementById("info-close").addEventListener("click", () => {
+        document.getElementById("info-card").classList.remove("visible");
+        paperShaderUniforms.uSelectedBand.value = -1;
+      });
+
+      function renderBandLegend() {
+        const legendEl = document.getElementById("band-legend");
+        legendEl.innerHTML = "";
+        getActivePigments().forEach((p) => {
+          const pill = document.createElement("button");
+          pill.className = "band-pill";
+          pill.innerHTML = `<span class="swatch" style="background:${p.hex}"></span><span>${p.nameEn}</span>`;
+          pill.addEventListener("click", (ev) => {
+            if (state.waterCm <= ORIGIN_CM + 0.3) return;
+            const found = getBandDistances().find((b) => b.id === p.id);
+            if (found) showBandInfoCard(found, ev.clientX - 330, ev.clientY);
+          });
+          legendEl.appendChild(pill);
+        });
+      }
+      renderBandLegend();
+
+      /* =========================================================================
+         10. LIVE HTML CANVAS GRAPH
+         ========================================================================= */
+      const graphCanvas = document.getElementById("live-graph");
+      const gCtx = graphCanvas.getContext("2d");
+
+      function drawLiveGraph() {
+        const w = graphCanvas.width;
+        const h = graphCanvas.height;
+        gCtx.clearRect(0, 0, w, h);
+
+        const padL = 32;
+        const padR = 10;
+        const padT = 10;
+        const padB = 22;
+        const plotW = w - padL - padR;
+        const plotH = h - padT - padB;
+
+        gCtx.strokeStyle = "#e2e8f0";
+        gCtx.lineWidth = 1;
+        gCtx.font = "bold 10px sans-serif";
+        gCtx.fillStyle = "#64748b";
+
+        for (let cm = 0; cm <= 10; cm += 2) {
+          const y = padT + plotH - (cm / 10) * plotH;
+          gCtx.beginPath();
+          gCtx.moveTo(padL, y);
+          gCtx.lineTo(w - padR, y);
+          gCtx.stroke();
+          gCtx.fillText(cm + "cm", 2, y + 3);
+        }
+
+        gCtx.strokeStyle = "#94a3b8";
+        gCtx.lineWidth = 1.5;
+        gCtx.beginPath();
+        gCtx.moveTo(padL, padT);
+        gCtx.lineTo(padL, padT + plotH);
+        gCtx.lineTo(w - padR, padT + plotH);
+        gCtx.stroke();
+
+        const maxMin = Math.max(60, state.simMinutes);
+        gCtx.fillStyle = "#64748b";
+        gCtx.fillText("0m", padL, h - 5);
+        gCtx.fillText(Math.round(maxMin) + "m", w - 32, h - 5);
+
+        if (state.history.length < 2) {
+          gCtx.fillStyle = "#94a3b8";
+          gCtx.font = "bold 11px sans-serif";
+          gCtx.fillText("Waiting for capillary action...", padL + 14, padT + plotH / 2);
+          return;
+        }
+
+        const toX = (m) => padL + (m / maxMin) * plotW;
+        const toY = (cm) => padT + plotH - (THREE.MathUtils.clamp(cm, 0, 10) / 10) * plotH;
+
+        gCtx.save();
+        gCtx.strokeStyle = "#0ea5e9";
+        gCtx.lineWidth = 2.6;
+        gCtx.setLineDash([5, 3]);
+        gCtx.beginPath();
+        state.history.forEach((pt, i) => {
+          const x = toX(pt.min);
+          const y = toY(pt.water);
+          if (i === 0) gCtx.moveTo(x, y);
+          else gCtx.lineTo(x, y);
+        });
+        gCtx.stroke();
+        gCtx.restore();
+
+        getActivePigments().forEach((p) => {
+          gCtx.strokeStyle = p.hex;
+          gCtx.lineWidth = 2.2;
+          gCtx.beginPath();
+          state.history.forEach((pt, i) => {
+            const x = toX(pt.min);
+            const y = toY(pt.bands[p.id]);
+            if (i === 0) gCtx.moveTo(x, y);
+            else gCtx.lineTo(x, y);
+          });
+          gCtx.stroke();
+        });
+      }
+
+      /* =========================================================================
+         11. CONFETTI CELEBRATION & RESULT MODAL
+         ========================================================================= */
+      const confettiCanvas = document.getElementById("confetti-canvas");
+      const cCtx = confettiCanvas.getContext("2d");
+      let confettiPieces = [];
+      let confettiRunning = false;
+
+      function resizeConfetti() {
+        confettiCanvas.width = window.innerWidth;
+        confettiCanvas.height = window.innerHeight;
+      }
+      resizeConfetti();
+
+      function launchConfetti() {
+        confettiPieces = [];
+        const colors = ["#ff5c8a", "#ffd000", "#00e5ff", "#8338ec", "#12b886", "#4c6ef5"];
+        for (let i = 0; i < 160; i++) {
+          confettiPieces.push({
+            x: Math.random() * confettiCanvas.width,
+            y: -20 - Math.random() * confettiCanvas.height * 0.5,
+            w: 7 + Math.random() * 8,
+            h: 5 + Math.random() * 7,
+            vx: (Math.random() - 0.5) * 4,
+            vy: 2.5 + Math.random() * 4.5,
+            rot: Math.random() * Math.PI * 2,
+            vRot: (Math.random() - 0.5) * 0.16,
+            color: colors[i % colors.length],
+          });
+        }
+        confettiRunning = true;
+      }
+
+      function updateConfetti() {
+        if (!confettiRunning) return;
+        cCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+        let alive = 0;
+        for (const p of confettiPieces) {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.rot += p.vRot;
+          if (p.y < confettiCanvas.height + 30) alive++;
+          cCtx.save();
+          cCtx.translate(p.x, p.y);
+          cCtx.rotate(p.rot);
+          cCtx.fillStyle = p.color;
+          cCtx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+          cCtx.restore();
+        }
+        if (alive === 0) {
+          confettiRunning = false;
+          cCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+        }
+      }
+
+      function showCompletionResult() {
+        sound.playFanfare();
+        launchConfetti();
+        document.getElementById("result-message").innerHTML = `
+          <div class="en-only">${state.selectedPen.resultEn}</div>
+          <div class="kn-only">${state.selectedPen.resultKn}</div>
+        `;
+        const summary = document.getElementById("result-summary");
+        summary.innerHTML = "";
+        getBandDistances().forEach((b) => {
+          const tag = document.createElement("span");
+          tag.className = "band-pill";
+          tag.innerHTML = `<span class="swatch" style="background:${b.hex}"></span>${b.nameEn} (${b.nameKn}): ${b.cm.toFixed(1)} cm`;
+          summary.appendChild(tag);
+        });
+        document.getElementById("result-overlay").classList.add("visible");
+      }
+
+      /* =========================================================================
+         12. UI BUTTONS
+         ========================================================================= */
+      document.getElementById("btn-lang").addEventListener("click", () => {
+        const order = ["bi", "en", "kn"];
+        const labels = { bi: "EN + ಕನ್ನಡ", en: "English", kn: "ಕನ್ನಡ" };
+        state.langMode = order[(order.indexOf(state.langMode) + 1) % order.length];
+        document.body.className = "lang-" + state.langMode;
+        document.getElementById("lang-label").textContent = labels[state.langMode];
+      });
+
+      document.getElementById("btn-theme").addEventListener("click", () => {
+        currentThemeIdx = (currentThemeIdx + 1) % LAB_THEMES.length;
+        applyLabTheme(currentThemeIdx);
+        sound.playPop(620);
+      });
+
+      document.getElementById("btn-panels").addEventListener("click", (e) => {
+        const hidden = document.body.classList.toggle("panels-hidden");
+        e.currentTarget.classList.toggle("active", !hidden);
+      });
+
+      document.getElementById("btn-sound").addEventListener("click", (e) => {
+        state.soundEnabled = !state.soundEnabled;
+        e.currentTarget.classList.toggle("active", state.soundEnabled);
+        e.currentTarget.innerHTML = state.soundEnabled ? "🔊 <span>Sound</span>" : "🔇 <span>Muted</span>";
+      });
+
+      document.getElementById("btn-play-pause").addEventListener("click", (e) => {
+        state.paused = !state.paused;
+        e.currentTarget.textContent = state.paused ? "▶️ Resume" : "⏸️ Pause";
+      });
+
+      document.getElementById("btn-speed").addEventListener("click", (e) => {
+        state.speedMultiplier = state.speedMultiplier === 1 ? 2 : 1;
+        e.currentTarget.textContent = state.speedMultiplier === 1 ? "⏩ 1x (5 min/s)" : "⚡ 2x (10 min/s)";
+      });
+
+      document.getElementById("btn-focus-beaker").addEventListener("click", () => {
+        focusCamera(new THREE.Vector3(0.15, 2.75, 5.75), new THREE.Vector3(0.0, 1.65, 0.18), 0.75);
+      });
+
+      document.getElementById("btn-inspect-3d").addEventListener("click", () => {
+        document.getElementById("result-overlay").classList.remove("visible");
+      });
+
+      function resetExperiment() {
+        activeTweens.length = 0;
+        state.step = 1;
+        state.paused = false;
+        state.simMinutes = 0;
+        state.waterCm = 0;
+        state.beakerWaterLevel = 0;
+        state.hasPencilLine = false;
+        state.hasInkDot = false;
+        state.paperInBeaker = false;
+        state.lastChimeBandIdx = -1;
+        state.selectedBandId = null;
+        state.history = [];
+        state.lastHistoryMin = -1;
+
+        applySketchPenMixture(SKETCH_PENS[0]);
+        paperShaderUniforms.uWaterCm.value = 0;
+        paperShaderUniforms.uHasPencil.value = 0;
+        paperShaderUniforms.uHasInk.value = 0;
+        paperShaderUniforms.uInkProgress.value = 0;
+        paperShaderUniforms.uSelectedBand.value = -1;
+
+        beakerWater.visible = false;
+        beakerWater.scale.set(1, 0.001, 1);
+        supportClipGroup.visible = false;
+        pourStream.visible = false;
+        pourSplash.visible = false;
+        sparkles.visible = false;
+        band3DCallouts.forEach((sp) => (sp.visible = false));
+
+        draggables.forEach((d) => {
+          d.position.copy(d.userData.homePos);
+          d.rotation.copy(d.userData.homeRot);
+          d.userData.placed = false;
+        });
+
+        focusCamera(defaultCamPos, defaultTarget, 0.8);
+
+        document.getElementById("chk-pencil").textContent = "✨";
+        document.getElementById("item-card-pencil").classList.remove("done");
+        document.getElementById("info-card").classList.remove("visible");
+        document.getElementById("result-overlay").classList.remove("visible");
+        document.getElementById("btn-play-pause").textContent = "⏸️ Pause";
+        document.getElementById("val-time").textContent = "0 min";
+        document.getElementById("val-water").textContent = "0.0 cm";
+
+        advanceStep(1);
+        drawLiveGraph();
+      }
+
+      document.getElementById("btn-reset").addEventListener("click", resetExperiment);
+      document.getElementById("btn-run-again").addEventListener("click", resetExperiment);
+
+      /* =========================================================================
+         13. MAIN ANIMATION & TIME-BASED CAPILLARY PHYSICS LOOP
+         ========================================================================= */
+      const clock = new THREE.Clock();
+
+      function animate() {
+        requestAnimationFrame(animate);
+        const dt = Math.min(clock.getDelta(), 0.05);
+        const elapsed = clock.elapsedTime;
+
+        paperShaderUniforms.uTime.value = elapsed;
+
+        [beakerRing, pourRing, paperRing, inkRing].forEach((ring) => {
+          if (ring.visible) {
+            const s = 1 + Math.sin(elapsed * 4.5) * 0.06;
+            ring.scale.set(s, s, 1);
+          }
+        });
+
+        if (pointerArrow.visible && !activeDrag) {
+          const targetObj =
+            state.step === 1 ? beakerGroup :
+            state.step === 2 ? bottleGroup :
+            state.step === 3 ? paperGroup :
+            penGroups[0];
+          const baseY = state.step === 1 ? 3.1 : state.step === 2 ? 2.65 : 1.05;
+          pointerArrow.position.set(
+            targetObj.position.x,
+            baseY + Math.sin(elapsed * 5.2) * 0.16,
+            targetObj.position.z
+          );
+        }
+
+        for (let i = activeTweens.length - 1; i >= 0; i--) {
+          const tw = activeTweens[i];
+          tw.elapsed += dt;
+          const rawT = Math.min(tw.elapsed / tw.duration, 1);
+          const eased = 1 - Math.pow(1 - rawT, 3);
+          tw.onUpdate(eased);
+          if (rawT >= 1) {
+            activeTweens.splice(i, 1);
+            if (tw.onDone) tw.onDone();
+          }
+        }
+
+        // Time-Based Capillary Action (1 real sec = 5 simulated minutes)
+        if (state.step === 6 && !state.paused) {
+          const simDtMin = dt * 5.0 * state.speedMultiplier;
+          state.simMinutes += simDtMin;
+          state.waterCm = Math.min(MAX_WATER_CM, state.waterCm + simDtMin * CM_RISE_PER_SIM_MIN);
+          paperShaderUniforms.uWaterCm.value = state.waterCm;
+
+          document.getElementById("val-time").textContent = `${Math.round(state.simMinutes)} min`;
+          document.getElementById("val-water").textContent = `${state.waterCm.toFixed(1)} cm`;
+
+          const dSolvent = Math.max(0, state.waterCm - ORIGIN_CM);
+          const chimeStage = Math.floor(dSolvent / 1.5);
+          if (dSolvent > 0.5 && chimeStage > state.lastChimeBandIdx && chimeStage <= 4) {
+            state.lastChimeBandIdx = chimeStage;
+            sound.playMagicChime(chimeStage);
+          }
+
+          if (state.simMinutes - state.lastHistoryMin >= 1.5 || state.waterCm >= MAX_WATER_CM) {
+            state.lastHistoryMin = state.simMinutes;
+            const bandMap = {};
+            PIGMENTS.forEach((p) => {
+              bandMap[p.id] = ORIGIN_CM + p.rf * dSolvent;
+            });
+            state.history.push({ min: state.simMinutes, water: state.waterCm, bands: bandMap });
+            drawLiveGraph();
+          }
+
+          if (state.waterCm >= MAX_WATER_CM) {
+            advanceStep(7);
+            showCompletionResult();
+          }
+        }
+
+        // Update 3D color-band callout positions only for active pigments of the chosen sketch pen
+        if (state.paperInBeaker && state.waterCm > ORIGIN_CM + 0.6) {
+          const dSolvent = Math.max(0, state.waterCm - ORIGIN_CM);
+          let visCount = 0;
+          PIGMENTS.forEach((p, idx) => {
+            const sp = band3DCallouts[idx];
+            if (state.selectedPen.weights[idx] > 0.5) {
+              sp.visible = true;
+              const cm = ORIGIN_CM + p.rf * dSolvent;
+              const uvY = (cm / 10.0) * 0.92;
+              sp.position.y = (uvY - 0.5) * PAPER_H;
+              sp.position.x = visCount % 2 === 0 ? 1.42 : -1.42;
+              visCount++;
+            } else {
+              sp.visible = false;
+            }
+          });
+        }
+
+        if (sparkles.visible) {
+          const posArr = sparkleGeo.attributes.position.array;
+          const activeH = Math.max(0.4, (state.waterCm / 10.0) * 2.35);
+          for (let i = 0; i < SPARKLE_COUNT; i++) {
+            const m = sparkleMeta[i];
+            m.angle += dt * m.speed * 0.9;
+            m.yOff = (m.yOff + dt * m.speed * 0.45) % activeH;
+            posArr[i * 3] = Math.cos(m.angle) * m.radius;
+            posArr[i * 3 + 1] = m.yOff;
+            posArr[i * 3 + 2] = Math.sin(m.angle) * m.radius;
+          }
+          sparkleGeo.attributes.position.needsUpdate = true;
+          sparkleMat.opacity = state.step === 6 ? 0.92 : 0.48;
+        }
+
+        updateConfetti();
+        controls.update();
+        renderer.render(scene, camera);
+      }
+
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        resizeConfetti();
+      });
+
+      advanceStep(1);
+      drawLiveGraph();
+      animate();
+    })();
+  </script>
+</body>
+</html>
